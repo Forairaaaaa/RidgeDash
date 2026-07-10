@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=RidgeDash
+Exec=/usr/share/APPLaunch/bin/RidgeDash
+Terminal=false
+Icon=share/images/ridgedash.png
+Type=Application
