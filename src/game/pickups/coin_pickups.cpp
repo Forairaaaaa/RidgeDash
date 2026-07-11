@@ -16,15 +16,138 @@
 
 #include <cmath>
 #include <random>
+#include <vector>
 
 namespace ridge_dash {
 namespace {
+
+constexpr float kPi = 3.14159265358979323846f;
 
 bool nearPoint(Vector2 a, Vector2 b, float distance)
 {
     const float dx = a.x - b.x;
     const float dy = a.y - b.y;
     return dx * dx + dy * dy <= distance * distance;
+}
+
+// Coin shape patterns. Points are built in a local frame where +x is forward and
+// +y is UP; the caller anchors and flips into world space (world y is down).
+enum class CoinShape {
+    Line,      // horizontal / sloped row
+    Wave,      // sine wave row
+    Circle,    // ring
+    Arch,      // upward arc (half-circle), good for jumps/rockets
+    Triangle,  // triangle outline
+    Diamond,   // diamond outline
+    Rect,      // rectangle outline
+    Count
+};
+
+// Append `n` evenly spaced points along a segment (local frame, +y up).
+void addSegment(std::vector<Vector2>& out, Vector2 a, Vector2 b, int n)
+{
+    if (n <= 1) {
+        out.push_back(a);
+        return;
+    }
+    for (int i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) / static_cast<float>(n - 1);
+        out.push_back({a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t});
+    }
+}
+
+// Number of coins to span a length at roughly one-diameter spacing.
+int spanCount(float length)
+{
+    return std::max(2, static_cast<int>(std::round(length / game_config::kCoinSpacing)) + 1);
+}
+
+// Build a shape's local-frame points. `scale` roughly controls size; `slope` tilts
+// line/wave shapes to follow the terrain.
+std::vector<Vector2> buildShapePoints(CoinShape shape, float scale, float slope, std::mt19937& rng)
+{
+    using game_config::kCoinSpacing;
+    std::vector<Vector2> pts;
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+
+    switch (shape) {
+        case CoinShape::Line: {
+            const float len = 3.0f + scale * 4.0f;
+            const int n = spanCount(len);
+            addSegment(pts, {0.0f, 0.0f}, {len, len * slope}, n);
+            break;
+        }
+        case CoinShape::Wave: {
+            const float len = 4.0f + scale * 5.0f;
+            const float amp = 0.9f + scale * 0.8f;
+            const int n = spanCount(len);
+            for (int i = 0; i < n; ++i) {
+                const float t = static_cast<float>(i) / static_cast<float>(n - 1);
+                const float x = t * len;
+                pts.push_back({x, x * slope + std::sin(t * kPi * 2.0f) * amp});
+            }
+            break;
+        }
+        case CoinShape::Circle: {
+            const float r = 1.2f + scale * 1.3f;
+            const int n = std::max(8, spanCount(2.0f * kPi * r));
+            for (int i = 0; i < n; ++i) {
+                const float a = (static_cast<float>(i) / static_cast<float>(n)) * kPi * 2.0f;
+                pts.push_back({std::cos(a) * r, r + std::sin(a) * r});
+            }
+            break;
+        }
+        case CoinShape::Arch: {
+            const float r = 1.6f + scale * 2.0f;
+            const int n = std::max(5, spanCount(kPi * r));
+            for (int i = 0; i < n; ++i) {
+                const float a = kPi * (static_cast<float>(i) / static_cast<float>(n - 1)); // 0..pi
+                pts.push_back({-std::cos(a) * r + r, std::sin(a) * r});
+            }
+            break;
+        }
+        case CoinShape::Triangle: {
+            const float s = 2.4f + scale * 2.6f;
+            const int n = spanCount(s);
+            const Vector2 a{0.0f, 0.0f};
+            const Vector2 b{s, 0.0f};
+            const Vector2 c{s * 0.5f, s * 0.9f};
+            addSegment(pts, a, b, n);
+            addSegment(pts, b, c, n);
+            addSegment(pts, c, a, n);
+            break;
+        }
+        case CoinShape::Diamond: {
+            const float s = 2.0f + scale * 2.2f;
+            const int n = spanCount(s);
+            const Vector2 top{0.0f, s};
+            const Vector2 right{s, 0.0f};
+            const Vector2 bot{0.0f, -s};
+            const Vector2 left{-s, 0.0f};
+            addSegment(pts, top, right, n);
+            addSegment(pts, right, bot, n);
+            addSegment(pts, bot, left, n);
+            addSegment(pts, left, top, n);
+            break;
+        }
+        case CoinShape::Rect: {
+            const float w = 3.0f + scale * 3.0f;
+            const float h = 1.8f + scale * 2.0f;
+            const int nx = spanCount(w);
+            const int ny = spanCount(h);
+            addSegment(pts, {0.0f, 0.0f}, {w, 0.0f}, nx);
+            addSegment(pts, {w, 0.0f}, {w, h}, ny);
+            addSegment(pts, {w, h}, {0.0f, h}, nx);
+            addSegment(pts, {0.0f, h}, {0.0f, 0.0f}, ny);
+            break;
+        }
+        default:
+            break;
+    }
+
+    (void)unit;
+    (void)rng;
+    return pts;
 }
 
 } // namespace
@@ -40,56 +163,113 @@ void CoinPickups::clear()
 void CoinPickups::reset(RidgeDashGame& game)
 {
     _items.clear();
-    _items.reserve(32);
+    _items.reserve(128);
 
-    std::uniform_real_distribution<float> gapDist(18.0f, 36.0f);
-    _nextX = 18.0f + gapDist(game._rng);
+    std::uniform_real_distribution<float> gapDist(kCoinClusterGapMin, kCoinClusterGapMax);
+    _nextX = 16.0f + gapDist(game._rng);
     stream(game, game._startX + kCoinGenerateAhead);
 }
 
 void CoinPickups::stream(RidgeDashGame& game, float targetX)
 {
-    std::uniform_real_distribution<float> gapDist(18.0f, 36.0f);
-    std::uniform_int_distribution<int> countDist(1, 3);
+    std::uniform_real_distribution<float> gapDist(kCoinClusterGapMin, kCoinClusterGapMax);
+    std::uniform_real_distribution<float> unit(0.0f, 1.0f);
+    std::uniform_real_distribution<float> scaleDist(0.3f, 1.0f);
+
     while (_nextX < targetX) {
-        const TerrainSample clusterTerrain = game._terrain.sampleAt(_nextX, 12.0f, game._rng);
+        // Local terrain slope (world y is down, so a downhill-forward slope is
+        // positive here after we flip to "up is positive").
+        const float hL = game._terrain.heightAt(_nextX - kCoinSlopeStep);
+        const float hR = game._terrain.heightAt(_nextX + kCoinSlopeStep);
+        const float slope = (hL - hR) / (2.0f * kCoinSlopeStep); // +: rising ahead (ramp up)
+        const bool steepRamp = slope > kCoinSteepSlope;
 
-        const int count = countDist(game._rng);
-        const float clusterStart = _nextX - 1.2f;
-        const float clusterEnd = _nextX + static_cast<float>(count - 1) * 1.08f + 1.2f;
-        if (game._pickups.fuel().activeInRange(clusterStart - 3.4f, clusterEnd + 3.4f)) {
-            _nextX += 5.4f;
-            continue;
+        // Coupling: a nearby rocket, or a launch ramp, biases toward airborne arcs.
+        const bool nearRocket = game._pickups.rocket().activeNear(_nextX, kCoinRocketRadius);
+        float airChance = kCoinAirChance;
+        if (nearRocket) {
+            airChance += kCoinRocketAirBoost;
         }
-        if (game._pickups.flea().activeInRange(clusterStart - 3.2f, clusterEnd + 3.2f)) {
-            _nextX += 4.9f;
-            continue;
+        if (steepRamp) {
+            airChance += 0.25f;
         }
-        if (game._pickups.rocket().activeNear(_nextX, 5.8f + static_cast<float>(count) * 0.7f)) {
-            _nextX += 6.4f;
-            continue;
+        const bool inAir = unit(game._rng) < airChance;
+
+        // Choose a shape. Airborne clusters favour arcs/rings; ground clusters favour
+        // lines/waves/polygons.
+        CoinShape shape;
+        if (inAir) {
+            const CoinShape airShapes[] = {CoinShape::Arch, CoinShape::Circle, CoinShape::Wave, CoinShape::Diamond};
+            shape = airShapes[std::uniform_int_distribution<int>(0, 3)(game._rng)];
+        } else {
+            const CoinShape groundShapes[] = {CoinShape::Line, CoinShape::Wave, CoinShape::Triangle,
+                                              CoinShape::Rect, CoinShape::Diamond};
+            shape = groundShapes[std::uniform_int_distribution<int>(0, 4)(game._rng)];
         }
-        if (game._pickups.cactus().activeNear(_nextX, 4.8f + static_cast<float>(count) * 0.7f)) {
-            _nextX += 5.8f;
-            continue;
-        }
-        if (game._pickups.snowman().activeNear(_nextX, 4.8f + static_cast<float>(count) * 0.7f)) {
-            _nextX += 5.8f;
+
+        const float scale = scaleDist(game._rng);
+        // Line/wave follow the slope; other shapes stay upright.
+        const float shapeSlope = (shape == CoinShape::Line || shape == CoinShape::Wave) ? clampf(slope, -1.2f, 1.2f)
+                                                                                        : 0.0f;
+        std::vector<Vector2> local = buildShapePoints(shape, scale, shapeSlope, game._rng);
+        if (local.empty()) {
+            _nextX += gapDist(game._rng);
             continue;
         }
 
-        const float center = static_cast<float>(count - 1) * 0.5f;
-        for (int i = 0; i < count; ++i) {
-            const float x = _nextX + static_cast<float>(i) * 1.08f;
-            const TerrainSample terrain = i == 0 ? clusterTerrain : game._terrain.sampleAt(x, 1.2f, game._rng);
-            const float lift = count == 1 ? 0.0f : (1.0f - std::abs(static_cast<float>(i) - center) / center) * 0.18f;
-            create(game, terrain, -1.02f - lift);
+        // Anchor height above the ground under the cluster centre.
+        std::uniform_real_distribution<float> airLift(kCoinAirLiftMin, kCoinAirLiftMax);
+        const float lift = inAir ? airLift(game._rng) : kCoinGroundLift;
+        const float anchorX = _nextX;
+        const float groundY = game._terrain.heightAt(anchorX);
+        const float anchorY = groundY - lift; // world y up = smaller
+
+        // Cluster x-extent for overlap checks.
+        float minLocalX = local.front().x;
+        float maxLocalX = local.front().x;
+        for (const Vector2& p : local) {
+            minLocalX = std::min(minLocalX, p.x);
+            maxLocalX = std::max(maxLocalX, p.x);
         }
-        _nextX += gapDist(game._rng);
+        const float clusterStart = anchorX + minLocalX;
+        const float clusterEnd = anchorX + maxLocalX;
+
+        // Keep clusters off solid pickups (rockets couple instead of block).
+        if (game._pickups.fuel().activeInRange(clusterStart - 3.0f, clusterEnd + 3.0f) ||
+            game._pickups.flea().activeInRange(clusterStart - 3.0f, clusterEnd + 3.0f) ||
+            game._pickups.cactus().activeNear((clusterStart + clusterEnd) * 0.5f, 5.0f) ||
+            game._pickups.snowman().activeNear((clusterStart + clusterEnd) * 0.5f, 5.0f)) {
+            _nextX += 5.0f;
+            continue;
+        }
+
+        // Ensure the WHOLE shape clears the terrain without deforming it: find the
+        // point that would sink deepest below its local ground clearance, then lift
+        // the entire cluster up by that much (world y is down; smaller = higher).
+        float extraLift = 0.0f;
+        for (const Vector2& p : local) {
+            const float wx = anchorX + p.x;
+            const float wy = anchorY - p.y;
+            const float ceil = game._terrain.heightAt(wx) - kCoinMinClearance; // highest allowed world y
+            extraLift = std::max(extraLift, wy - ceil); // >0 means this point is below the ceiling
+        }
+        const float placeY = anchorY - extraLift;
+
+        // Place each coin (shape kept intact, just shifted up as a whole).
+        for (const Vector2& p : local) {
+            createAt(game, {anchorX + p.x, placeY - p.y});
+        }
+
+        _nextX = clusterEnd + gapDist(game._rng);
     }
 }
 
 void CoinPickups::create(RidgeDashGame& game, const TerrainSample& terrain, float yOffset)
+{
+    createAt(game, {terrain.x, terrain.y + yOffset});
+}
+
+void CoinPickups::createAt(RidgeDashGame& game, Vector2 worldPos)
 {
     if (!b2World_IsValid(game._worldId)) {
         return;
@@ -97,7 +277,7 @@ void CoinPickups::create(RidgeDashGame& game, const TerrainSample& terrain, floa
 
     _items.push_back(Item{});
     Item& coin = _items.back();
-    coin.pos = {terrain.x, terrain.y + yOffset};
+    coin.pos = worldPos;
 
     b2BodyDef bodyDef = b2DefaultBodyDef();
     bodyDef.type = b2_staticBody;

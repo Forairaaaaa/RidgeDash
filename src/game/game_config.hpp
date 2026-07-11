@@ -49,6 +49,22 @@ constexpr float kRocketPickupDistance = 1.16f;
 constexpr float kCactusPickupDistance = 1.28f;
 constexpr float kSnowmanPickupDistance = 1.20f;
 constexpr float kCoinScore = 10.0f;
+
+// Coin cluster layout: coins are placed as shapes (lines/waves/arcs/polygons),
+// on the ground or floating in the air, with slope- and rocket-coupled odds.
+constexpr float kCoinSpacing = 0.92f;         // spacing between coins in a shape (~diameter)
+constexpr float kCoinClusterGapMin = 24.0f;   // min x gap between shape clusters
+constexpr float kCoinClusterGapMax = 48.0f;   // max x gap between shape clusters
+constexpr float kCoinGroundLift = 1.25f;      // ground clusters float this far above terrain
+constexpr float kCoinMinClearance = 0.85f;    // no coin ever sits closer than this to the ground
+constexpr float kCoinAirLiftMin = 3.4f;       // air clusters: min height above terrain
+constexpr float kCoinAirLiftMax = 7.0f;       // air clusters: max height above terrain
+constexpr float kCoinAirChance = 0.34f;       // base chance a cluster is placed in the air
+constexpr float kCoinSlopeStep = 1.4f;        // dx used to sample local terrain slope
+constexpr float kCoinSteepSlope = 0.55f;      // |slope| above this counts as a launch ramp
+constexpr float kCoinRocketRadius = 9.0f;     // couple to a rocket within this x distance
+constexpr float kCoinRocketAirBoost = 0.5f;   // added air chance near a rocket
+
 constexpr int kFlipBonusScore = 100;
 constexpr float kFlipBonusAngle = 4.36f;
 constexpr float kScorePopupDuration = 0.85f;

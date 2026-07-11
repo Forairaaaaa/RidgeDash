@@ -91,6 +91,7 @@ private:
     };
 
     void create(RidgeDashGame& game, const TerrainSample& terrain, float yOffset);
+    void createAt(RidgeDashGame& game, Vector2 worldPos);
     bool collect(RidgeDashGame& game, Item& coin);
 
     std::vector<Item> _items;
