@@ -129,6 +129,8 @@ void Vehicle::reset()
     _dustSerial = 0;
     _wasAirborne = false;
     _airFallSpeed = 0.0f;
+    _landingEvent = false;
+    _landingFallSpeed = 0.0f;
     _frontGrounded = false;
     _rearGrounded = false;
     _hasSnapshot = false;
@@ -465,13 +467,19 @@ void Vehicle::updateDust(float dt, bool running, uint32_t runSeed, TerrainBiome 
         _wasAirborne = true;
         _airFallSpeed = std::max(_airFallSpeed, fallSpeed);
     } else {
-        if (_wasAirborne && _airFallSpeed > 3.0f) {
-            const float intensity = clampf((_airFallSpeed - 3.0f) / 12.0f, 0.0f, 1.0f);
-            if (_rearGrounded) {
-                spawnLandingDust(_rearWheelId, rearBiome, runSeed, intensity);
-            }
-            if (_frontGrounded) {
-                spawnLandingDust(_frontWheelId, frontBiome, runSeed, intensity);
+        if (_wasAirborne) {
+            // Record the touchdown for the audio layer (sound thresholds live
+            // there); dust keeps its own heavier threshold below.
+            _landingEvent = true;
+            _landingFallSpeed = _airFallSpeed;
+            if (_airFallSpeed > 3.0f) {
+                const float intensity = clampf((_airFallSpeed - 3.0f) / 12.0f, 0.0f, 1.0f);
+                if (_rearGrounded) {
+                    spawnLandingDust(_rearWheelId, rearBiome, runSeed, intensity);
+                }
+                if (_frontGrounded) {
+                    spawnLandingDust(_frontWheelId, frontBiome, runSeed, intensity);
+                }
             }
         }
         _wasAirborne = false;
@@ -707,6 +715,16 @@ void Vehicle::updateGroundState()
     _frontGrounded = wheelGrounded(_frontShape);
 }
 
+bool Vehicle::consumeLandingEvent(float& fallSpeed)
+{
+    if (!_landingEvent) {
+        return false;
+    }
+    fallSpeed = _landingFallSpeed;
+    _landingEvent = false;
+    return true;
+}
+
 bool Vehicle::valid() const
 {
     return b2Body_IsValid(_chassisId);
@@ -918,6 +936,12 @@ void RidgeDashGame::updateDust(float dt)
         frontBiome = _terrain.biomeAt(_vehicle.frontWheelPosition().x);
     }
     _vehicle.updateDust(dt, _runController.running(), _runSeed, rearBiome, frontBiome);
+
+    // Touchdown sound: heavy drop -> car_landing, light bump -> car_hit.
+    float fallSpeed = 0.0f;
+    if (_vehicle.consumeLandingEvent(fallSpeed) && fallSpeed > kLandingSoundMinSpeed) {
+        playSfx(fallSpeed > kHardLandingSpeed ? AudioSystem::Sfx::CarLanding : AudioSystem::Sfx::CarHit);
+    }
 }
 
 bool RidgeDashGame::carValid() const

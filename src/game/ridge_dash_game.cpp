@@ -25,6 +25,7 @@ RidgeDashGame::RidgeDashGame()
 {
     _runSeed = static_cast<uint32_t>(std::time(nullptr));
     loadSprites();
+    _audio.load();
     _ui.configureAnimations();
     reset();
 }
@@ -32,6 +33,7 @@ RidgeDashGame::RidgeDashGame()
 RidgeDashGame::~RidgeDashGame()
 {
     destroyWorld();
+    _audio.unload();
     unloadSprites();
 }
 
@@ -94,6 +96,10 @@ void RidgeDashGame::reset()
     _runStats.reset();
     _trickTracker.reset();
     _ui.resetRun();
+    _audio.resetEngine();
+    _audio.startBgm();
+    _bgmIntense = false;
+    _bgmCalmTimer = 0.0f;
     _camera = {0.0f, 0.0f};
     _startX = 4.0f;
     createWorld();
@@ -133,6 +139,11 @@ float RidgeDashGame::renderAlpha() const
     return _interpolate ? clampf(_physicsRemainder / kPhysicsStep, 0.0f, 1.0f) : 1.0f;
 }
 
+void RidgeDashGame::playSfx(AudioSystem::Sfx id)
+{
+    _audio.play(id);
+}
+
 void RidgeDashGame::destroyWorld()
 {
     if (b2World_IsValid(_worldId)) {
@@ -156,6 +167,11 @@ void RidgeDashGame::update(float dt)
 {
     dt = std::min(dt, kMaxFrameDt);
     _input.poll();
+
+    // Keep the engine stream fed every frame (including while paused/game over) so
+    // its buffer never starves; the state flags handle muting.
+    updateEngineAudio(dt);
+    updateBgmAudio(dt);
 
     if (_runController.paused()) {
         updatePauseMenu(dt);
@@ -243,6 +259,53 @@ void RidgeDashGame::updateEnvironmentBiome(float dt)
     _environment.updateBiome(_terrain.biomeAt(sampleX), dt);
 }
 
+void RidgeDashGame::updateEngineAudio(float dt)
+{
+    const GameInput::Drive& drive = _input.drive();
+    AudioSystem::EngineState state{};
+    // Total speed (includes vertical) so launches/falls/landings shift the note.
+    state.speed = carValid() ? length(_vehicle.chassisVelocity()) : 0.0f;
+    state.throttle = drive.throttle;
+    state.brake = drive.brake;
+    // Idle audible from game start (menu/ready + running); muted on pause/game over.
+    state.on = !_runController.paused() && !_runController.gameOver();
+    _audio.updateEngine(dt, state);
+}
+
+void RidgeDashGame::updateBgmAudio(float dt)
+{
+    const float speed = carValid() ? length(_vehicle.chassisVelocity()) : 0.0f;
+
+    // Calm <-> intense state machine with hysteresis + a dwell before calming down,
+    // so a quick dip in speed doesn't flip the music back and forth. Only escalates
+    // while actually running; menu/game-over target calm.
+    if (_runController.running()) {
+        if (!_bgmIntense) {
+            if (speed > kBgmIntenseSpeed) {
+                _bgmIntense = true;
+                _bgmCalmTimer = 0.0f;
+            }
+        } else if (speed < kBgmCalmSpeed) {
+            _bgmCalmTimer += dt;
+            if (_bgmCalmTimer > kBgmCalmDwell) {
+                _bgmIntense = false;
+                _bgmCalmTimer = 0.0f;
+            }
+        } else {
+            _bgmCalmTimer = 0.0f;
+        }
+    } else {
+        _bgmIntense = false;
+        _bgmCalmTimer = 0.0f;
+    }
+
+    AudioSystem::BgmState state{};
+    state.intense = _bgmIntense;
+    state.audible = !_runController.paused();   // paused -> duck
+    state.active = !_runController.gameOver();   // game over -> fade out
+    _audio.updateBgm(dt, state);
+}
+
 void RidgeDashGame::updateDriverExpression(float dt)
 {
     const float groundY = carValid() ? _terrain.heightAt(_vehicle.chassisPosition().x) : 0.0f;
@@ -269,17 +332,25 @@ void RidgeDashGame::updateTricks(float dt)
                                                                _vehicle.rearGrounded(),
                                                                _runController.headHit(),
                                                            });
-    if (bonus.flips <= 0) {
-        return;
-    }
 
-    _runStats.addFlipBonus(bonus.flips, bonus.score);
-    showScorePopup(bonus.score, bonus.flips > 1 ? TextFormat("%dx FLIP", bonus.flips) : "FLIP");
+    // Each flip is credited the instant it completes, mid-air: score, an updated
+    // "Nx FLIP" popup, and the flip sound all fire immediately and keep counting.
+    if (bonus.newFlip) {
+        _runStats.addFlipBonus(1, kFlipBonusScore);
+        showScorePopup(kFlipBonusScore, bonus.flipIndex > 1 ? TextFormat("%dx FLIP", bonus.flipIndex) : "FLIP");
+        playSfx(AudioSystem::Sfx::CarFlip);
+    }
 }
 
 void RidgeDashGame::updatePauseMenu(float dt)
 {
     _ui.updatePauseTimer(dt);
+
+    // Click on any menu navigation / confirm / back key (all edge-triggered).
+    const GameInput::Menu& menu = _input.menu();
+    if (menu.up || menu.down || menu.left || menu.right || menu.confirm || menu.back) {
+        playSfx(AudioSystem::Sfx::UiSelect);
+    }
 
     switch (_pauseMenu.update(_input.menu(), _ui)) {
         case PauseMenuController::Action::ExitPause:
@@ -304,6 +375,7 @@ void RidgeDashGame::enterPauseMenu()
         return;
     }
     _ui.enterPause();
+    playSfx(AudioSystem::Sfx::UiSelect);
 }
 
 void RidgeDashGame::exitPauseMenu()

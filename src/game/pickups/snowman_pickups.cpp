@@ -133,6 +133,7 @@ bool SnowmanPickups::collect(RidgeDashGame& game, Item& snowman)
 
     snowman.active = false;
     game._pickups.effects().spawn({snowman.pos.x, snowman.pos.y - 0.12f}, PickupEffects::Kind::Snowman, game._runSeed);
+    game.playSfx(AudioSystem::Sfx::Snowman);
     if (b2Body_IsValid(snowman.bodyId)) {
         b2DestroyBody(snowman.bodyId);
     }

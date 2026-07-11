@@ -41,7 +41,13 @@ set(SMOOTH_UI_TOOLKIT_BUILD_TEST OFF CACHE BOOL "" FORCE)
 if(NOT RIDGEDASH_RAYLIB_PLATFORM STREQUAL "FBDEV")
     set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
-    set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
+    # Audio (raudio/miniaudio) is only enabled on Desktop for now. DRM/embedded
+    # builds keep it off to avoid pulling in ALSA/PulseAudio deps.
+    if(RIDGEDASH_RAYLIB_PLATFORM STREQUAL "Desktop")
+        set(SUPPORT_MODULE_RAUDIO ON CACHE BOOL "" FORCE)
+    else()
+        set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
+    endif()
     set(CUSTOMIZE_BUILD ON CACHE BOOL "" FORCE)
     set(PLATFORM "${RIDGEDASH_RAYLIB_PLATFORM}" CACHE STRING "" FORCE)
     add_subdirectory("${RIDGEDASH_RAYLIB_DIR}" EXCLUDE_FROM_ALL)
@@ -77,6 +83,7 @@ elseif(RIDGEDASH_RAYLIB_PLATFORM STREQUAL "DRM")
 elseif(RIDGEDASH_RAYLIB_PLATFORM STREQUAL "Desktop")
     target_compile_definitions(${RIDGEDASH_BIN_NAME} PRIVATE
         RIDGEDASH_DESKTOP_RENDER=1
+        RIDGEDASH_ENABLE_AUDIO=1
     )
 endif()
 
@@ -107,6 +114,9 @@ add_custom_target(copy_${RIDGEDASH_BIN_NAME}_dist ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${RIDGEDASH_ROOT}/assets"
         "${RIDGEDASH_ROOT}/dist/assets"
+    COMMAND ${CMAKE_COMMAND}
+        -DDIST_ASSETS=${RIDGEDASH_ROOT}/dist/assets
+        -P "${RIDGEDASH_ROOT}/cmake/strip_dist_assets.cmake"
     DEPENDS ${RIDGEDASH_BIN_NAME}
     VERBATIM
 )

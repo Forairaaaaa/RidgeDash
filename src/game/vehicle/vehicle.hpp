@@ -74,6 +74,11 @@ public:
     void drawDust(Vector2 camera) const;
     void draw(const DrawContext& context) const;
 
+    // Consume a "touched down this frame" event (set in updateDust). Returns true
+    // once per landing and reports the downward speed at impact so callers can pick
+    // a heavy vs. light landing sound.
+    bool consumeLandingEvent(float& fallSpeed);
+
     // Applies continuous per-physics-step forces (drive air-control torque). Called
     // once per fixed step from stepPhysics so total impulse is framerate-independent.
     void applyStepForces();
@@ -156,6 +161,8 @@ private:
     uint32_t _dustSerial = 0;
     bool _wasAirborne = false;
     float _airFallSpeed = 0.0f;
+    bool _landingEvent = false;
+    float _landingFallSpeed = 0.0f;
     bool _frontGrounded = false;
     bool _rearGrounded = false;
 

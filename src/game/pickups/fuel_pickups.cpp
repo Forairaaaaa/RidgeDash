@@ -103,6 +103,7 @@ bool FuelPickups::collect(RidgeDashGame& game, Item& fuel)
     game._pickups.effects().spawn(fuel.pos, PickupEffects::Kind::Fuel, game._runSeed);
     fuel.active = false;
     game._runController.refillFuel();
+    game.playSfx(AudioSystem::Sfx::Fuel);
     if (b2Body_IsValid(fuel.bodyId)) {
         b2DestroyBody(fuel.bodyId);
     }

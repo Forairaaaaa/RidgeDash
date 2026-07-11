@@ -23,8 +23,8 @@ public:
     };
 
     struct Bonus {
-        int flips = 0;
-        int score = 0;
+        bool newFlip = false; // a flip just completed this frame (score + popup + sfx)
+        int flipIndex = 0;    // cumulative flip number this air session (1,2,3,...) when newFlip
     };
 
     void reset();
@@ -34,6 +34,7 @@ private:
     float _airTime = 0.0f;
     float _flipAngle = 0.0f;
     float _lastFlipAngle = 0.0f;
+    int _announcedFlips = 0;
     bool _wasAirborne = false;
 };
 

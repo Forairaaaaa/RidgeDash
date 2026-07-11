@@ -136,6 +136,7 @@ bool CoinPickups::collect(RidgeDashGame& game, Item& coin)
     coin.active = false;
     game._runStats.addCoin(kCoinScore);
     game.showScorePopup(static_cast<int>(kCoinScore), "");
+    game.playSfx(AudioSystem::Sfx::Coin);
     if (b2Body_IsValid(coin.bodyId)) {
         b2DestroyBody(coin.bodyId);
     }

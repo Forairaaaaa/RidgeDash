@@ -62,6 +62,15 @@ constexpr float kHeadRadius = 0.22f;
 constexpr b2Vec2 kDriverLocalPos = {-0.18f, -0.50f};
 constexpr float kBodyVisualYOffset = -3.0f;
 
+// Touchdown sound thresholds (downward speed at impact, m/s).
+constexpr float kLandingSoundMinSpeed = 2.0f;  // below this, a touchdown is silent
+constexpr float kHardLandingSpeed = 8.5f;      // above this, play the heavy landing sound
+
+// BGM calm <-> intense switching (total speed, m/s), with hysteresis + dwell.
+constexpr float kBgmIntenseSpeed = 9.0f;  // above this -> switch to intense music
+constexpr float kBgmCalmSpeed = 5.0f;     // sustained below this -> switch back to calm
+constexpr float kBgmCalmDwell = 2.4f;     // seconds below calm speed before switching back
+
 inline float clampf(float value, float lo, float hi)
 {
     return std::max(lo, std::min(value, hi));
