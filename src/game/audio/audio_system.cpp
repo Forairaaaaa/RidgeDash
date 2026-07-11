@@ -14,8 +14,10 @@
 
 #include "game/game_config.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <string>
 
 namespace ridge_dash {
@@ -41,6 +43,8 @@ constexpr float kBgmVolume = 1.00f;          // master ceiling for background mu
 constexpr float kBgmPauseDuck = 0.30f;       // volume multiplier while paused
 constexpr float kBgmCrossfadeTime = 1.3f;    // seconds to cross between calm and intense
 constexpr float kBgmMasterSmoothing = 0.10f; // per-60Hz-frame lerp for the master envelope
+constexpr float kBgmCalmResumeDelay = 5.0f; // hold calm silent after a reset (skip the
+                                             // calm->intense flash when relaunching fast)
 
 // Framerate-independent lerp factor (matches the camera/engine smoothing elsewhere).
 float frameFactor(float k, float dt)
@@ -224,6 +228,31 @@ void AudioSystem::stopBgm()
     }
 }
 
+std::string AudioSystem::nextBgmTrack(const std::vector<std::string>& paths,
+                                      std::vector<std::size_t>& bag,
+                                      std::size_t& lastPick)
+{
+    if (paths.empty()) {
+        return {};
+    }
+    if (bag.empty()) {
+        // Refill and shuffle: a fresh permutation of all indices.
+        bag.resize(paths.size());
+        for (std::size_t i = 0; i < paths.size(); ++i) {
+            bag[i] = i;
+        }
+        std::shuffle(bag.begin(), bag.end(), _rng);
+        // Avoid an immediate repeat of the just-played track across bag refills.
+        if (paths.size() > 1 && bag.back() == lastPick) {
+            std::swap(bag.front(), bag.back());
+        }
+    }
+    const std::size_t index = bag.back();
+    bag.pop_back();
+    lastPick = index;
+    return paths[index];
+}
+
 void AudioSystem::startBgm()
 {
     if (!IsAudioDeviceReady()) {
@@ -231,40 +260,35 @@ void AudioSystem::startBgm()
     }
     stopBgm();
 
-    // Pick a fresh random track from each category for this run; both loop
-    // continuously and are crossfaded by updateBgm.
-    auto pick = [&](const std::vector<std::string>& paths) -> std::string {
-        if (paths.empty()) {
-            return {};
-        }
-        const std::size_t i =
-            paths.size() == 1 ? 0 : std::uniform_int_distribution<std::size_t>(0, paths.size() - 1)(_rng);
-        return paths[i];
-    };
-
-    const std::string calm = pick(_calmPaths);
+    // Draw the next track from each category's shuffle bag so every track plays
+    // once before any repeats. Tracks are loaded here but not started; the state
+    // machine in updateBgm plays whichever one the current state calls for, from
+    // its beginning, at full volume (no fade-in).
+    const std::string calm = nextBgmTrack(_calmPaths, _calmBag, _calmLast);
     if (!calm.empty()) {
         _bgmCalm = LoadMusicStream(calm.c_str());
         if (IsMusicValid(_bgmCalm)) {
             _bgmCalm.looping = true;
             _bgmCalmLoaded = true;
             SetMusicVolume(_bgmCalm, 0.0f);
-            PlayMusicStream(_bgmCalm);
         }
     }
-    const std::string intense = pick(_intensePaths);
+    const std::string intense = nextBgmTrack(_intensePaths, _intenseBag, _intenseLast);
     if (!intense.empty()) {
         _bgmIntense = LoadMusicStream(intense.c_str());
         if (IsMusicValid(_bgmIntense)) {
             _bgmIntense.looping = true;
             _bgmIntenseLoaded = true;
             SetMusicVolume(_bgmIntense, 0.0f);
-            PlayMusicStream(_bgmIntense);
         }
     }
 
-    _bgmBlend = 0.0f;  // start on the calm track
-    _bgmMaster = 0.0f; // fade in from silence
+    _bgmActive = -1;                     // nothing playing yet
+    _bgmCalmFade = 0.0f;
+    _bgmIntenseFade = 0.0f;
+    _bgmMaster = 1.0f;                   // no master fade-in; tracks hard-start themselves
+    _bgmCalmDelay = kBgmCalmResumeDelay; // hold calm silent briefly; if the player
+                                         // guns it during this window we start intense instead
 }
 
 void AudioSystem::updateBgm(float dt, const BgmState& state)
@@ -273,26 +297,71 @@ void AudioSystem::updateBgm(float dt, const BgmState& state)
         return;
     }
 
-    // Crossfade blend (linear over kBgmCrossfadeTime) and master envelope
-    // (duck on pause, fade out on game over).
-    const float blendTarget = state.intense ? 1.0f : 0.0f;
-    const float blendStep = dt / kBgmCrossfadeTime;
-    if (_bgmBlend < blendTarget) {
-        _bgmBlend = std::min(blendTarget, _bgmBlend + blendStep);
+    // Decide which track *should* be active this frame.
+    //   during the post-reset delay: none, unless the player has already gone
+    //     intense (then start intense right away);
+    //   after the delay: intense if the run is intense, otherwise calm.
+    if (_bgmCalmDelay > 0.0f && !state.intense) {
+        _bgmCalmDelay = std::max(0.0f, _bgmCalmDelay - dt);
+    }
+    int desired;
+    if (state.intense) {
+        desired = 1; // intense
+    } else if (_bgmCalmDelay > 0.0f) {
+        desired = -1; // still holding: nothing yet
     } else {
-        _bgmBlend = std::max(blendTarget, _bgmBlend - blendStep);
+        desired = 0; // calm
     }
 
+    // On a state change, hard-start the newly active track from its beginning at
+    // full level (no fade-in); the previous track fades out via its fade level.
+    if (desired != _bgmActive) {
+        if (desired == 0 && _bgmCalmLoaded) {
+            SeekMusicStream(_bgmCalm, 0.0f);
+            PlayMusicStream(_bgmCalm);
+            _bgmCalmFade = 1.0f;
+        } else if (desired == 1 && _bgmIntenseLoaded) {
+            SeekMusicStream(_bgmIntense, 0.0f);
+            PlayMusicStream(_bgmIntense);
+            _bgmIntenseFade = 1.0f;
+        }
+        _bgmActive = desired;
+    }
+
+    // Fade levels: the active track holds at 1, the inactive one fades to 0.
+    const float fadeStep = dt / kBgmCrossfadeTime;
+    auto fadeToward = [&](float& fade, bool active) {
+        const float target = active ? 1.0f : 0.0f;
+        if (fade < target) {
+            fade = std::min(target, fade + fadeStep);
+        } else {
+            fade = std::max(target, fade - fadeStep);
+        }
+    };
+    fadeToward(_bgmCalmFade, _bgmActive == 0);
+    fadeToward(_bgmIntenseFade, _bgmActive == 1);
+
+    // Master envelope: duck on pause, fade out on game over.
     const float masterTarget = !state.active ? 0.0f : (state.audible ? 1.0f : kBgmPauseDuck);
     _bgmMaster += (masterTarget - _bgmMaster) * frameFactor(kBgmMasterSmoothing, dt);
 
     if (_bgmCalmLoaded) {
-        SetMusicVolume(_bgmCalm, kBgmVolume * _bgmMaster * (1.0f - _bgmBlend));
-        UpdateMusicStream(_bgmCalm);
+        SetMusicVolume(_bgmCalm, kBgmVolume * _bgmMaster * _bgmCalmFade);
+        // Only advance a stream that is (or was recently) audible, to keep the
+        // faded-out track from drifting; stopping it once silent frees the buffer.
+        if (_bgmCalmFade > 0.0f) {
+            UpdateMusicStream(_bgmCalm);
+        } else if (IsMusicStreamPlaying(_bgmCalm) && _bgmActive != 0) {
+            StopMusicStream(_bgmCalm);
+        }
     }
     if (_bgmIntenseLoaded) {
-        SetMusicVolume(_bgmIntense, kBgmVolume * _bgmMaster * _bgmBlend);
-        UpdateMusicStream(_bgmIntense);
+        SetMusicVolume(_bgmIntense, kBgmVolume * _bgmMaster * _bgmIntenseFade);
+        if (_bgmIntenseFade > 0.0f) {
+            UpdateMusicStream(_bgmIntense);
+        } else if (IsMusicStreamPlaying(_bgmIntense) && _bgmActive != 1) {
+            StopMusicStream(_bgmIntense);
+        }
     }
 }
 

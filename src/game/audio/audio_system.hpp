@@ -75,6 +75,10 @@ private:
 #if defined(RIDGEDASH_ENABLE_AUDIO)
     void loadSfxGroup(Sfx id, std::initializer_list<const char*> files);
     void stopBgm();
+    // Next track from a category's shuffle bag: plays every track once (in a random
+    // order) before any repeats. `lastPick` avoids repeating across a bag refill.
+    std::string nextBgmTrack(const std::vector<std::string>& paths, std::vector<std::size_t>& bag,
+                             std::size_t& lastPick);
 
     Music _engine{};
     bool _engineLoaded = false;
@@ -85,12 +89,21 @@ private:
 
     std::vector<std::string> _calmPaths;    // discovered files in music/calm/
     std::vector<std::string> _intensePaths; // discovered files in music/intense/
+    std::vector<std::size_t> _calmBag;      // remaining shuffled indices for calm
+    std::vector<std::size_t> _intenseBag;   // remaining shuffled indices for intense
+    std::size_t _calmLast = ~std::size_t{0};    // last calm index drawn (no back-to-back)
+    std::size_t _intenseLast = ~std::size_t{0}; // last intense index drawn
     Music _bgmCalm{};
     Music _bgmIntense{};
     bool _bgmCalmLoaded = false;
     bool _bgmIntenseLoaded = false;
-    float _bgmBlend = 0.0f;   // 0 = calm, 1 = intense
-    float _bgmMaster = 0.0f;  // overall bgm volume envelope (duck / fade-out)
+    // Active-track model: the track for the current state plays from its start at full
+    // volume (no fade-in); the other fades out. -1 = none playing yet (delay window).
+    int _bgmActive = -1;         // -1 none, 0 calm, 1 intense
+    float _bgmCalmFade = 0.0f;   // 0..1 output level for the calm track
+    float _bgmIntenseFade = 0.0f;// 0..1 output level for the intense track
+    float _bgmMaster = 0.0f;     // overall bgm volume envelope (duck / fade-out)
+    float _bgmCalmDelay = 0.0f;  // hold calm silent for this long after a reset
 
     std::mt19937 _rng{0xA17D};
 #endif
