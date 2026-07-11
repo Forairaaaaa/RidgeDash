@@ -25,7 +25,12 @@ Vector2 RidgeDashGame::worldToScreen(b2Vec2 p) const
 
 void RidgeDashGame::draw() const
 {
-    _environment.drawBackground(_camera, _runStats.distance());
+    // Background celestial/star motion is driven by distance; feed the interpolated
+    // distance so the sun/moon advance smoothly instead of stepping at 60Hz.
+    const float backgroundDistance =
+        carValid() ? _vehicle.renderDistanceFrom(_startX, renderInterpolation(), renderAlpha())
+                   : _runStats.distance();
+    _environment.drawBackground(_camera, backgroundDistance);
     _terrain.draw(_camera);
     _pickups.draw(*this);
     drawDust();

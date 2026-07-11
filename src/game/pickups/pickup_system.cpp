@@ -49,6 +49,12 @@ void PickupSystem::update(RidgeDashGame& game, float dt)
     _squid.update(dt);
 }
 
+void PickupSystem::applyStepForces(RidgeDashGame& game)
+{
+    _rocket.applyStepForces(game);
+    _snowman.applyStepForces(game);
+}
+
 void PickupSystem::updateEffects(float dt)
 {
     _effects.update(dt);

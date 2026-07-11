@@ -108,7 +108,7 @@ void SnowmanPickups::trim(float minX)
     }
 }
 
-void SnowmanPickups::applyBoost(RidgeDashGame& game, float dt)
+void SnowmanPickups::applyBoost(RidgeDashGame& game)
 {
     if (!game.carValid()) {
         return;
@@ -119,7 +119,6 @@ void SnowmanPickups::applyBoost(RidgeDashGame& game, float dt)
     const float forceX = 18.0f + std::max(0.0f, velocity.x) * 0.22f + throttle * 8.0f;
     game._vehicle.applyMainBodyForcePerMass({forceX, -1.4f}, 1.0f, 0.55f, 0.55f);
     game._vehicle.applyChassisTorque(-0.8f * throttle);
-    _boostTimer = std::max(0.0f, _boostTimer - dt);
 }
 
 bool SnowmanPickups::collect(RidgeDashGame& game, Item& snowman)
@@ -144,10 +143,18 @@ bool SnowmanPickups::collect(RidgeDashGame& game, Item& snowman)
 
 void SnowmanPickups::update(RidgeDashGame& game, float dt)
 {
+    (void)game;
+    // Timer counts down in real time (per frame); the boost force is applied in
+    // applyStepForces once per physics step so it stays framerate-independent.
+    _boostTimer = std::max(0.0f, _boostTimer - dt);
+}
+
+void SnowmanPickups::applyStepForces(RidgeDashGame& game)
+{
     if (_boostTimer <= 0.0f) {
         return;
     }
-    applyBoost(game, dt);
+    applyBoost(game);
 }
 
 bool SnowmanPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)

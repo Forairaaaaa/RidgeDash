@@ -45,6 +45,8 @@ public:
     void setDisplayScaleOption(DisplayScaleOption option);
     bool consumeDisplayScaleRequest(DisplayScaleOption& option);
     void setInterpolationEnabled(bool enabled);
+    bool renderInterpolation() const;
+    float renderAlpha() const;
 
 private:
     friend class PickupSystem;

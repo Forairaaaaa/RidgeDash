@@ -141,6 +141,7 @@ public:
     void stream(RidgeDashGame& game, float targetX);
     void trim(float minX);
     void update(RidgeDashGame& game, float dt);
+    void applyStepForces(RidgeDashGame& game);
     bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeNear(float x, float distance) const;
@@ -226,6 +227,7 @@ public:
     void stream(RidgeDashGame& game, float targetX);
     void trim(float minX);
     void update(RidgeDashGame& game, float dt);
+    void applyStepForces(RidgeDashGame& game);
     bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeNear(float x, float distance) const;
@@ -241,7 +243,7 @@ private:
 
     void create(RidgeDashGame& game, const TerrainSample& terrain);
     bool collect(RidgeDashGame& game, Item& snowman);
-    void applyBoost(RidgeDashGame& game, float dt);
+    void applyBoost(RidgeDashGame& game);
 
     std::vector<Item> _items;
     float _nextX = 0.0f;
@@ -292,6 +294,7 @@ public:
     void clear();
     void reset(RidgeDashGame& game);
     void update(RidgeDashGame& game, float dt);
+    void applyStepForces(RidgeDashGame& game);
     void updateEffects(float dt);
     void stream(RidgeDashGame& game, float carX);
     void trim(float minX);

@@ -123,6 +123,7 @@ void Vehicle::reset()
     _driverHeightAboveGround = 0.0f;
     _driverScaredTimer = 0.0f;
     _driverHitFlashTimer = 0.0f;
+    _pendingDriveTorque = 0.0f;
     _dustParticles.clear();
     _dustEmitRemainder = 0.0f;
     _dustSerial = 0;
@@ -292,6 +293,7 @@ void Vehicle::setWheelMotor(float speed, float torque)
 
 Vehicle::DriveResult Vehicle::applyDriveInput(const DriveInput& input)
 {
+    _pendingDriveTorque = 0.0f;
     if (!input.canDrive) {
         setWheelMotor(0.0f, 0.0f);
         return {};
@@ -304,21 +306,30 @@ Vehicle::DriveResult Vehicle::applyDriveInput(const DriveInput& input)
     const float tiltTorque = partlyAirborne ? kAirControlTorque : kAirControlTorque * 0.34f;
     if (input.throttle) {
         setWheelMotor(kThrottleSpeed, kMotorTorque);
+        // Store the tilt torque; it is applied once per physics step in
+        // applyStepForces so its net effect is framerate-independent.
         if (canTilt) {
-            applyChassisTorque(-tiltTorque);
+            _pendingDriveTorque = -tiltTorque;
         }
         return {1.0f, true};
     }
     if (input.brake) {
         setWheelMotor(kBrakeSpeed, kMotorTorque * 0.82f);
         if (canTilt) {
-            applyChassisTorque(tiltTorque);
+            _pendingDriveTorque = tiltTorque;
         }
         return {0.75f, true};
     }
 
     setWheelMotor(0.0f, 0.0f);
     return {};
+}
+
+void Vehicle::applyStepForces()
+{
+    if (_pendingDriveTorque != 0.0f) {
+        applyChassisTorque(_pendingDriveTorque);
+    }
 }
 
 void Vehicle::updateDriverExpression(float dt, float groundY, bool gameOver)
@@ -733,6 +744,32 @@ b2Rot Vehicle::chassisRotation() const
 b2Vec2 Vehicle::chassisWorldPoint(b2Vec2 localPoint) const
 {
     return b2Body_IsValid(_chassisId) ? b2Body_GetWorldPoint(_chassisId, localPoint) : localPoint;
+}
+
+b2Vec2 Vehicle::renderChassisWorldPoint(b2Vec2 localPoint, bool interp, float alpha) const
+{
+    if (interp && _hasSnapshot) {
+        const b2Transform xf{b2Lerp(_chassisSnapshot.prevPos, _chassisSnapshot.curPos, alpha),
+                             b2NLerp(_chassisSnapshot.prevRot, _chassisSnapshot.curRot, alpha)};
+        return b2TransformPoint(xf, localPoint);
+    }
+    return chassisWorldPoint(localPoint);
+}
+
+float Vehicle::renderChassisAngleDeg(bool interp, float alpha) const
+{
+    const b2Rot rot = (interp && _hasSnapshot) ? b2NLerp(_chassisSnapshot.prevRot, _chassisSnapshot.curRot, alpha)
+                                               : chassisRotation();
+    return b2Rot_GetAngle(rot) * RAD2DEG;
+}
+
+float Vehicle::renderDistanceFrom(float startX, bool interp, float alpha) const
+{
+    if (interp && _hasSnapshot) {
+        const float x = b2Lerp(_chassisSnapshot.prevPos, _chassisSnapshot.curPos, alpha).x;
+        return std::max(0.0f, x - startX);
+    }
+    return distanceFrom(startX);
 }
 
 b2Vec2 Vehicle::frontWheelPosition() const
