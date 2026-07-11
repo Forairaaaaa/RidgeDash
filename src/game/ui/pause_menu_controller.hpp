@@ -27,9 +27,15 @@ public:
     bool consumeDisplayScaleRequest(DisplayScaleOption& option);
     const char* scaleLabel() const;
 
+    void setCrtEnabled(bool enabled);
+    bool consumeCrtRequest(bool& enabled);
+    bool crtEnabled() const;
+
 private:
     DisplayScaleOption _displayScaleOption = DisplayScaleOption::Scale3;
     bool _displayScaleRequestPending = false;
+    bool _crtEnabled = true;
+    bool _crtRequestPending = false;
 };
 
 } // namespace ridge_dash

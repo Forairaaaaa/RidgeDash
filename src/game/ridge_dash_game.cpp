@@ -124,6 +124,16 @@ bool RidgeDashGame::consumeDisplayScaleRequest(DisplayScaleOption& option)
     return _pauseMenu.consumeDisplayScaleRequest(option);
 }
 
+void RidgeDashGame::setCrtEnabled(bool enabled)
+{
+    _pauseMenu.setCrtEnabled(enabled);
+}
+
+bool RidgeDashGame::consumeCrtRequest(bool& enabled)
+{
+    return _pauseMenu.consumeCrtRequest(enabled);
+}
+
 void RidgeDashGame::setInterpolationEnabled(bool enabled)
 {
     _interpolate = enabled;

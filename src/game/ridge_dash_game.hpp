@@ -45,6 +45,8 @@ public:
     bool shouldQuit() const;
     void setDisplayScaleOption(DisplayScaleOption option);
     bool consumeDisplayScaleRequest(DisplayScaleOption& option);
+    void setCrtEnabled(bool enabled);
+    bool consumeCrtRequest(bool& enabled);
     void setInterpolationEnabled(bool enabled);
     bool renderInterpolation() const;
     float renderAlpha() const;

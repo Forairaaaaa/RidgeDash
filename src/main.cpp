@@ -58,6 +58,15 @@ DisplayScaleOption initialDisplayScaleOption()
     return DisplayScaleOption::Scale3;
 }
 
+// CRT post-process default from RIDGEDASH_CRT ("0"/"off" disables). Defaults on.
+bool crtInitiallyEnabled()
+{
+    if (const char* value = std::getenv("RIDGEDASH_CRT")) {
+        return !(std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0);
+    }
+    return true;
+}
+
 int scaleValue(DisplayScaleOption option)
 {
     switch (option) {
@@ -208,10 +217,31 @@ int main()
     const bool useRenderTarget = false;
 #endif
 
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+    // CRT post-process shader, applied when blitting the render target to the window.
+    Shader crtShader{};
+    int crtResolutionLoc = -1;
+    int crtTimeLoc = -1;
+    bool crtLoaded = false;
+    for (const char* path : {"assets/shaders/crt.fs", "../assets/shaders/crt.fs"}) {
+        if (FileExists(path)) {
+            crtShader = LoadShader(nullptr, path);
+            if (IsShaderValid(crtShader)) {
+                crtResolutionLoc = GetShaderLocation(crtShader, "uResolution");
+                crtTimeLoc = GetShaderLocation(crtShader, "uTime");
+                crtLoaded = true;
+            }
+            break;
+        }
+    }
+    bool crtEnabled = crtInitiallyEnabled() && crtLoaded;
+#endif
+
     {
         ridge_dash::RidgeDashGame game;
 #if defined(RIDGEDASH_DESKTOP_RENDER)
         game.setDisplayScaleOption(displayOption);
+        game.setCrtEnabled(crtEnabled);
         // Interpolate rendering whenever the frame rate isn't locked to the physics
         // rate (uncapped or >60). At exactly 60 the live path renders identically.
         game.setInterpolationEnabled(desktopFps == 0 || desktopFps > 60);
@@ -222,6 +252,9 @@ int main()
             if (game.consumeDisplayScaleRequest(displayOption)) {
                 display = applyDisplayOption(displayOption);
                 loadRenderTarget(display.targetScale);
+            }
+            if (bool requested = false; game.consumeCrtRequest(requested)) {
+                crtEnabled = requested && crtLoaded;
             }
 #endif
             game.update(GetFrameTime());
@@ -251,6 +284,15 @@ int main()
 
                 BeginDrawing();
                 ClearBackground(BLACK);
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+                if (crtEnabled) {
+                    const Vector2 res = {static_cast<float>(destWidth), static_cast<float>(destHeight)};
+                    const float t = static_cast<float>(GetTime());
+                    SetShaderValue(crtShader, crtResolutionLoc, &res, SHADER_UNIFORM_VEC2);
+                    SetShaderValue(crtShader, crtTimeLoc, &t, SHADER_UNIFORM_FLOAT);
+                    BeginShaderMode(crtShader);
+                }
+#endif
                 DrawTexturePro(renderTarget.texture,
                                Rectangle{0.0f,
                                          0.0f,
@@ -263,6 +305,11 @@ int main()
                                Vector2{0.0f, 0.0f},
                                0.0f,
                                WHITE);
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+                if (crtEnabled) {
+                    EndShaderMode();
+                }
+#endif
                 EndDrawing();
                 continue;
             }
@@ -286,6 +333,11 @@ int main()
 
 #if !defined(RIDGEDASH_USE_FBDEV)
     unloadRenderTarget();
+#endif
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+    if (crtLoaded) {
+        UnloadShader(crtShader);
+    }
 #endif
 
 #if defined(RIDGEDASH_ENABLE_AUDIO)

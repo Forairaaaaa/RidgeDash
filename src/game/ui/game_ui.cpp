@@ -420,7 +420,7 @@ void GameUi::drawPauseMenu(const PauseView& view) const
 {
 #if defined(RIDGEDASH_DESKTOP_RENDER)
     constexpr int kPanelW = 226;
-    constexpr int kPanelH = 82;
+    constexpr int kPanelH = 98;
 #else
     constexpr int kPanelW = 202;
     constexpr int kPanelH = 66;
@@ -454,7 +454,15 @@ void GameUi::drawPauseMenu(const PauseView& view) const
                          _pauseSelection == 0 ? selected : normal);
 
     DrawText(_pauseSelection == 1 ? ">" : " ", kPanelX + 16, y + 62, 10, _pauseSelection == 1 ? selected : normal);
-    DrawText("EXIT", kPanelX + 28, y + 62, 10, _pauseSelection == 1 ? selected : normal);
+    DrawText("CRT", kPanelX + 28, y + 62, 10, _pauseSelection == 1 ? selected : normal);
+    drawTextRightAligned(TextFormat("< %s >", view.crtOn ? "ON" : "OFF"),
+                         kPanelX + kPanelW - 18,
+                         y + 62,
+                         10,
+                         _pauseSelection == 1 ? selected : normal);
+
+    DrawText(_pauseSelection == 2 ? ">" : " ", kPanelX + 16, y + 77, 10, _pauseSelection == 2 ? selected : normal);
+    DrawText("EXIT", kPanelX + 28, y + 77, 10, _pauseSelection == 2 ? selected : normal);
 #else
     DrawText(">", kPanelX + 18, y + 45, 10, fadeColor(Color{131, 255, 160, 255}, alpha));
     DrawText("EXIT", kPanelX + 30, y + 45, 10, fadeColor(Color{131, 255, 160, 255}, alpha));

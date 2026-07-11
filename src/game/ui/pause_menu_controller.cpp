@@ -19,7 +19,7 @@ PauseMenuController::Action PauseMenuController::update(const GameInput::Menu& i
     Action action = input.back ? Action::ExitPause : Action::None;
 
 #if defined(RIDGEDASH_DESKTOP_RENDER)
-    constexpr int kOptionCount = 2;
+    constexpr int kOptionCount = 3; // 0 = SCALE, 1 = CRT, 2 = EXIT
     if (input.up) {
         ui.setPauseSelection((ui.pauseSelection() + kOptionCount - 1) % kOptionCount);
     }
@@ -34,7 +34,11 @@ PauseMenuController::Action PauseMenuController::update(const GameInput::Menu& i
         _displayScaleOption = nextDisplayScaleOption(_displayScaleOption, 1);
         _displayScaleRequestPending = true;
     }
-    if (input.confirm && ui.pauseSelection() == 1) {
+    if (ui.pauseSelection() == 1 && (input.left || input.right || input.confirm)) {
+        _crtEnabled = !_crtEnabled;
+        _crtRequestPending = true;
+    }
+    if (input.confirm && ui.pauseSelection() == 2) {
         action = Action::QuitGame;
     }
 #else
@@ -61,6 +65,27 @@ bool PauseMenuController::consumeDisplayScaleRequest(DisplayScaleOption& option)
     _displayScaleRequestPending = false;
     option = _displayScaleOption;
     return true;
+}
+
+void PauseMenuController::setCrtEnabled(bool enabled)
+{
+    _crtEnabled = enabled;
+}
+
+bool PauseMenuController::consumeCrtRequest(bool& enabled)
+{
+    if (!_crtRequestPending) {
+        return false;
+    }
+
+    _crtRequestPending = false;
+    enabled = _crtEnabled;
+    return true;
+}
+
+bool PauseMenuController::crtEnabled() const
+{
+    return _crtEnabled;
 }
 
 const char* PauseMenuController::scaleLabel() const

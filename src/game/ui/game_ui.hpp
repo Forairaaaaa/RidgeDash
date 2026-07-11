@@ -38,6 +38,7 @@ public:
     struct PauseView {
         GameRecords records{};
         const char* scaleLabel = "";
+        bool crtOn = true;
     };
 
     void configureAnimations();

@@ -42,7 +42,7 @@ void RidgeDashGame::draw() const
         _ui.drawStartTips();
     }
     if (_runController.paused()) {
-        _ui.drawPauseMenu(GameUi::PauseView{_runRecords.records(), _pauseMenu.scaleLabel()});
+        _ui.drawPauseMenu(GameUi::PauseView{_runRecords.records(), _pauseMenu.scaleLabel(), _pauseMenu.crtEnabled()});
     }
     if (_runController.gameOver() && _runController.gameOverTimer() >= 2.0f) {
         _ui.drawGameOver(GameUi::RunSummaryView{_runStats.score(),
