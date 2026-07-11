@@ -191,6 +191,9 @@ void Vehicle::create(b2WorldId worldId, float startX, float startY)
     chassisDef.rotation = b2MakeRot(-0.05f);
     chassisDef.linearDamping = 0.009f;
     chassisDef.angularDamping = 0.012f;
+    // Never sleep: box2d ignores wheel-joint motors on a sleeping body, which would
+    // freeze the car after a few idle seconds even though input is being read.
+    chassisDef.enableSleep = false;
     _chassisId = b2CreateBody(worldId, &chassisDef);
 
     b2ShapeDef chassisShape = b2DefaultShapeDef();
@@ -214,6 +217,7 @@ void Vehicle::create(b2WorldId worldId, float startX, float startY)
     driverHeadDef.rotation = b2Body_GetRotation(_chassisId);
     driverHeadDef.linearDamping = 0.12f;
     driverHeadDef.angularDamping = 0.18f;
+    driverHeadDef.enableSleep = false;
     _driverHeadId = b2CreateBody(worldId, &driverHeadDef);
 
     b2ShapeDef driverHeadShape = b2DefaultShapeDef();
@@ -243,6 +247,7 @@ void Vehicle::create(b2WorldId worldId, float startX, float startY)
         wheelDef.position = {startX + xOffset, startY + 0.58f};
         wheelDef.linearDamping = 0.009f;
         wheelDef.angularDamping = 0.009f;
+        wheelDef.enableSleep = false;
         wheelId = b2CreateBody(worldId, &wheelDef);
 
         b2ShapeDef shapeDef = b2DefaultShapeDef();
