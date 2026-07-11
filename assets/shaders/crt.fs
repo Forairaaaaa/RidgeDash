@@ -33,6 +33,7 @@ const float SCANLINE_MIN   = 0.32;   // beam half-width for dark pixels (thin li
 const float SCANLINE_MAX   = 0.62;   // beam half-width for bright pixels (fuller)
 const float SCANLINE_DEPTH = 0.50;   // darkness between scanlines (0 = none)
 const float VIGNETTE       = 0.26;   // corner darkening strength
+const float EDGE_FEATHER    = 0.015;  // soft fade width at the curved screen edge (UV)
 const float FLICKER        = 0.025;  // subtle brightness flicker amount
 const float FINAL_GAIN     = 1.50;   // compensate for mask/scanline darkening
 const float NATIVE_HEIGHT  = 170.0;  // logical rows (RIDGEDASH_SCREEN_HEIGHT)
@@ -66,8 +67,12 @@ void main()
 {
     vec2 uv = curve(fragTexCoord);
 
-    // Outside the curved screen -> bezel (black).
-    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+    // Soft feathered edge instead of a hard cutoff: fade to black over EDGE_FEATHER
+    // just inside each curved screen edge, so the four corners melt out smoothly.
+    vec2 edge = smoothstep(vec2(0.0), vec2(EDGE_FEATHER), uv) *
+                smoothstep(vec2(0.0), vec2(EDGE_FEATHER), 1.0 - uv);
+    float edgeMask = edge.x * edge.y;
+    if (edgeMask <= 0.0) {
         finalColor = vec4(0.0, 0.0, 0.0, 1.0);
         return;
     }
@@ -97,6 +102,9 @@ void main()
     // Subtle flicker + brightness compensation.
     col *= 1.0 - FLICKER * (0.5 + 0.5 * sin(uTime * 12.0));
     col *= FINAL_GAIN;
+
+    // Feather the curved screen edge into the bezel.
+    col *= edgeMask;
 
     finalColor = vec4(col, 1.0) * colDiffuse * fragColor;
 }
