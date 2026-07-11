@@ -198,11 +198,9 @@ void RocketPickups::update(RidgeDashGame& game, float dt)
 
     _flightTimer -= dt;
     const b2Vec2 velocity = game._vehicle.chassisVelocity();
-    const float throttle = std::max(0.0f, std::min(_flightTimer / 1.58f, 1.0f));
-    const b2Vec2 thrust = {11.5f + velocity.x * 0.16f, -(23.0f + throttle * 11.0f)};
-    game._vehicle.applyChassisForcePerMass(thrust);
-    game._vehicle.applyChassisTorque(-2.0f * throttle);
 
+    // Thrust/torque are applied in applyStepForces (once per physics step) so they
+    // stay framerate-independent. Here we only advance timers and spawn the trail.
     const b2Rot rotation = game._vehicle.chassisRotation();
     const b2Vec2 center = game._vehicle.chassisWorldPoint({-0.10f, 0.58f});
     const b2Vec2 tailPos = center + rotateVec(rotation, {-1.10f, 0.02f});
@@ -219,6 +217,19 @@ void RocketPickups::update(RidgeDashGame& game, float dt)
         _flightTimer = 0.0f;
         _trailRemainder = 0.0f;
     }
+}
+
+void RocketPickups::applyStepForces(RidgeDashGame& game)
+{
+    if (!_flightActive || !game.carValid()) {
+        return;
+    }
+
+    const b2Vec2 velocity = game._vehicle.chassisVelocity();
+    const float throttle = std::max(0.0f, std::min(_flightTimer / 1.58f, 1.0f));
+    const b2Vec2 thrust = {11.5f + velocity.x * 0.16f, -(23.0f + throttle * 11.0f)};
+    game._vehicle.applyChassisForcePerMass(thrust);
+    game._vehicle.applyChassisTorque(-2.0f * throttle);
 }
 
 bool RocketPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
@@ -285,12 +296,19 @@ void RocketPickups::draw(const RidgeDashGame& game) const
     }
 
     if (_flightActive && game.carValid()) {
-        const b2Rot rotation = game._vehicle.chassisRotation();
-        const b2Vec2 rocketPos = game._vehicle.chassisWorldPoint({-0.10f, 0.58f});
+        // Track the interpolated chassis so the rocket sprite stays glued to the
+        // smoothed car at high frame rates instead of snapping at the 60Hz step.
+        const bool interp = game.renderInterpolation();
+        const float alpha = game.renderAlpha();
+        const b2Vec2 rocketPos = game._vehicle.renderChassisWorldPoint({-0.10f, 0.58f}, interp, alpha);
         Vector2 p = game.worldToScreen(rocketPos);
-        p.x = std::round(p.x);
-        p.y = std::round(p.y + kBodyVisualYOffset);
-        const float angle = b2Rot_GetAngle(rotation) * RAD2DEG;
+        if (interp) {
+            p.y += kBodyVisualYOffset;
+        } else {
+            p.x = std::round(p.x);
+            p.y = std::round(p.y + kBodyVisualYOffset);
+        }
+        const float angle = game._vehicle.renderChassisAngleDeg(interp, alpha);
         if (textureLoaded(game._sprites.rocket)) {
             drawSpriteCentered(game._sprites.rocket, p, 31.0f, 17.0f, angle);
         } else {

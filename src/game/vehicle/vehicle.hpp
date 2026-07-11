@@ -74,6 +74,17 @@ public:
     void drawDust(Vector2 camera) const;
     void draw(const DrawContext& context) const;
 
+    // Applies continuous per-physics-step forces (drive air-control torque). Called
+    // once per fixed step from stepPhysics so total impulse is framerate-independent.
+    void applyStepForces();
+
+    // Interpolation-aware chassis accessors for render code attached to the vehicle
+    // (e.g. the in-flight rocket sprite) so it tracks the smoothed body, not the
+    // 60Hz-snapping live transform. interp==false returns the live value.
+    b2Vec2 renderChassisWorldPoint(b2Vec2 localPoint, bool interp, float alpha) const;
+    float renderChassisAngleDeg(bool interp, float alpha) const;
+    float renderDistanceFrom(float startX, bool interp, float alpha) const;
+
     bool valid() const;
     bool shapeBelongsToVehicle(b2ShapeId shapeId) const;
     float distanceFrom(float startX) const;
@@ -139,6 +150,7 @@ private:
     float _driverHeightAboveGround = 0.0f;
     float _driverScaredTimer = 0.0f;
     float _driverHitFlashTimer = 0.0f;
+    float _pendingDriveTorque = 0.0f;
     std::vector<DustParticle> _dustParticles;
     float _dustEmitRemainder = 0.0f;
     uint32_t _dustSerial = 0;

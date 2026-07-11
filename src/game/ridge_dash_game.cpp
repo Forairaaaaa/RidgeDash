@@ -123,6 +123,16 @@ void RidgeDashGame::setInterpolationEnabled(bool enabled)
     _interpolate = enabled;
 }
 
+bool RidgeDashGame::renderInterpolation() const
+{
+    return _interpolate;
+}
+
+float RidgeDashGame::renderAlpha() const
+{
+    return _interpolate ? clampf(_physicsRemainder / kPhysicsStep, 0.0f, 1.0f) : 1.0f;
+}
+
 void RidgeDashGame::destroyWorld()
 {
     if (b2World_IsValid(_worldId)) {
@@ -211,6 +221,10 @@ void RidgeDashGame::stepPhysics(float dt)
     _physicsRemainder += dt;
     int steps = 0;
     while (_physicsRemainder >= kPhysicsStep && steps < 4) {
+        // Apply continuous forces once per fixed step so their net impulse is
+        // framerate-independent (see Vehicle/Rocket/Snowman applyStepForces).
+        _vehicle.applyStepForces();
+        _pickups.applyStepForces(*this);
         b2World_Step(_worldId, kPhysicsStep, 8);
         _physicsRemainder -= kPhysicsStep;
         ++steps;
