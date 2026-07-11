@@ -330,7 +330,10 @@ void RidgeDashGame::updateTricks(float dt)
                                                                std::abs(_vehicle.chassisAngularVelocity()),
                                                                _vehicle.frontGrounded(),
                                                                _vehicle.rearGrounded(),
-                                                               _runController.headHit(),
+                                                               // Not blocked by a head hit: like distance, flips keep
+                                                               // counting after touchdown until the run truly ends
+                                                               // (updateTricks already early-outs on gameOver()).
+                                                               false,
                                                            });
 
     // Each flip is credited the instant it completes, mid-air: score, an updated
