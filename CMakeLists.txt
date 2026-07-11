@@ -64,6 +64,23 @@ add_executable(${RIDGEDASH_BIN_NAME}
     ${RIDGEDASH_CPP}
 )
 
+# macOS native fullscreen hook (Cocoa). Only compiled for the desktop Apple build;
+# other platforms use native_window_stub.cpp (globbed above). Compiled as
+# Objective-C++ via `-x objective-c++` on the C++ toolchain, so we avoid enabling a
+# global OBJCXX language (which would break GLFW's plain Objective-C .m files).
+if(APPLE AND RIDGEDASH_RAYLIB_PLATFORM STREQUAL "Desktop")
+    set_source_files_properties(
+        "${RIDGEDASH_SRC_DIR}/platform/native_window_mac.mm"
+        PROPERTIES LANGUAGE CXX COMPILE_OPTIONS "-x;objective-c++"
+    )
+    target_sources(${RIDGEDASH_BIN_NAME} PRIVATE
+        "${RIDGEDASH_SRC_DIR}/platform/native_window_mac.mm"
+    )
+    target_link_libraries(${RIDGEDASH_BIN_NAME} PRIVATE
+        "-framework AppKit"
+    )
+endif()
+
 target_include_directories(${RIDGEDASH_BIN_NAME} PRIVATE
     "${RIDGEDASH_SRC_DIR}"
 )

@@ -10,8 +10,10 @@
  */
 #include "game/ridge_dash_game.hpp"
 
+#include "platform/native_window.hpp"
 #include "platform/raylib_compat.hpp"
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -85,53 +87,35 @@ int scaleValue(DisplayScaleOption option)
     }
 }
 
-struct DisplayState {
-    DisplayScaleOption option = DisplayScaleOption::Scale3;
-    int width = kScreenWidth * 3;
-    int height = kScreenHeight * 3;
-    int destScale = 3;
-    int targetScale = 3;
-};
-
-int integerDestScale(int width, int height)
+// Fixed supersample factor for the render target, sized to the monitor so a
+// fullscreen frame stays crisp. The FBO size is constant for the whole session;
+// the window is just letterboxed onto it.
+int fboSupersampleScale()
 {
-    return std::max(1, std::min(width / kScreenWidth, height / kScreenHeight));
+    const int monitor = GetCurrentMonitor();
+    const int fit = std::max(1, static_cast<int>(std::ceil(static_cast<float>(GetMonitorHeight(monitor)) / kScreenHeight)));
+    return std::clamp(std::max(renderScale(), fit), 1, 8);
 }
 
-// Supersample factor applied on top of the display scale on desktop: the render
-// target is drawn this many times larger per axis, then filtered down. Capped so
-// the FBO stays reasonable. RIDGEDASH_RENDER_SCALE can raise the floor further.
-int supersampledTargetScale(int destScale)
+// Apply a display option to the OS window. Fullscreen uses the platform's native
+// fullscreen (real macOS fullscreen Space: hides the Dock and menu bar, greenlights
+// the traffic-light button); scaled options exit fullscreen and size the window to
+// an integer multiple. The frame is letterboxed onto the window every frame, so the
+// exact window size no longer needs to be tracked here.
+void applyDisplayOption(DisplayScaleOption option)
 {
-    const int ss = std::clamp(destScale * 2, 1, 8);
-    return std::max(renderScale(), ss);
-}
-
-DisplayState applyDisplayOption(DisplayScaleOption option)
-{
-    DisplayState state{};
-    state.option = option;
-
     if (option == DisplayScaleOption::Fullscreen) {
-        const int monitor = GetCurrentMonitor();
-        const Vector2 pos = GetMonitorPosition(monitor);
-        state.width = GetMonitorWidth(monitor);
-        state.height = GetMonitorHeight(monitor);
-        state.destScale = integerDestScale(state.width, state.height);
-        state.targetScale = supersampledTargetScale(state.destScale);
-        SetWindowState(FLAG_BORDERLESS_WINDOWED_MODE);
-        SetWindowPosition(static_cast<int>(pos.x), static_cast<int>(pos.y));
-        SetWindowSize(state.width, state.height);
-        return state;
+        if (!ridge_dash::isNativeFullscreen()) {
+            ridge_dash::toggleNativeFullscreen();
+        }
+        return;
     }
 
-    ClearWindowState(FLAG_FULLSCREEN_MODE | FLAG_BORDERLESS_WINDOWED_MODE | FLAG_WINDOW_MAXIMIZED);
-    state.destScale = scaleValue(option);
-    state.targetScale = supersampledTargetScale(state.destScale);
-    state.width = kScreenWidth * state.destScale;
-    state.height = kScreenHeight * state.destScale;
-    SetWindowSize(state.width, state.height);
-    return state;
+    if (ridge_dash::isNativeFullscreen()) {
+        ridge_dash::toggleNativeFullscreen();
+    }
+    const int scale = scaleValue(option);
+    SetWindowSize(kScreenWidth * scale, kScreenHeight * scale);
 }
 #else
 int windowScale()
@@ -154,7 +138,11 @@ int main()
     const int windowHeight = kScreenHeight * displayScale;
 
 #if defined(RIDGEDASH_DESKTOP_RENDER)
-    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
+    // Resizable window so it can be freely dragged/zoomed; the frame is integer-scaled
+    // and letterboxed to whatever size the window currently is. (No HIGHDPI: the game
+    // is a fixed 320x170 target and the FBO already supersamples, so 1 window point =
+    // 1 pixel keeps the letterbox math simple and avoids a quarter-frame blit.)
+    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT | FLAG_WINDOW_RESIZABLE);
 #else
     SetConfigFlags(FLAG_VSYNC_HINT);
 #endif
@@ -163,6 +151,10 @@ int main()
         CloseWindow();
         return 2;
     }
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+    ridge_dash::enableNativeFullscreen();
+    SetWindowMinSize(kScreenWidth, kScreenHeight);
+#endif
 #if defined(RIDGEDASH_ENABLE_AUDIO)
     InitAudioDevice();
 #endif
@@ -178,7 +170,7 @@ int main()
     RidgeDashInputInit();
 
 #if defined(RIDGEDASH_DESKTOP_RENDER)
-    DisplayState display = applyDisplayOption(displayOption);
+    applyDisplayOption(displayOption);
 #else
     int targetScale = std::max(renderScale(), displayScale);
 #endif
@@ -209,7 +201,8 @@ int main()
         }
     };
 #if defined(RIDGEDASH_DESKTOP_RENDER)
-    loadRenderTarget(display.targetScale);
+    const int fboScale = fboSupersampleScale();
+    loadRenderTarget(fboScale);
 #else
     loadRenderTarget(targetScale);
 #endif
@@ -250,8 +243,7 @@ int main()
         while (!RidgeDashWindowShouldClose() && !game.shouldQuit()) {
 #if defined(RIDGEDASH_DESKTOP_RENDER)
             if (game.consumeDisplayScaleRequest(displayOption)) {
-                display = applyDisplayOption(displayOption);
-                loadRenderTarget(display.targetScale);
+                applyDisplayOption(displayOption);
             }
             if (bool requested = false; game.consumeCrtRequest(requested)) {
                 crtEnabled = requested && crtLoaded;
@@ -262,12 +254,17 @@ int main()
 #if !defined(RIDGEDASH_USE_FBDEV)
             if (IsRenderTextureValid(renderTarget)) {
 #if defined(RIDGEDASH_DESKTOP_RENDER)
-                const int drawScale = display.destScale;
+                // Letterbox the frame into the current window, integer-scaled and
+                // centered, with black bars around it. Without HIGHDPI, screen size
+                // (points) equals the framebuffer, so a plain blit fills the window.
+                const int winW = GetScreenWidth();
+                const int winH = GetScreenHeight();
+                const int drawScale = std::max(1, std::min(winW / kScreenWidth, winH / kScreenHeight));
                 const int destWidth = kScreenWidth * drawScale;
                 const int destHeight = kScreenHeight * drawScale;
-                const int destX = (display.width - destWidth) / 2;
-                const int destY = (display.height - destHeight) / 2;
-                const int renderScaleValue = display.targetScale;
+                const int destX = (winW - destWidth) / 2;
+                const int destY = (winH - destHeight) / 2;
+                const int renderScaleValue = fboScale;
 #else
                 const int destWidth = windowWidth;
                 const int destHeight = windowHeight;
