@@ -1,92 +1,129 @@
 # RidgeDash
 
-A fast-paced, arcade-style 2D physics driving game controlled with just two
-buttons, inspired by [Hill Climb Racing](https://en.wikipedia.org/wiki/Hill_Climb_Racing).
+类似于 [登山赛车](https://en.wikipedia.org/wiki/Hill_Climb_Racing) 的复古像素风 2D 物理驾驶小游戏
 
-## Dependencies
+A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill Climb Racing](https://en.wikipedia.org/wiki/Hill_Climb_Racing)
 
-Fetch the third-party sources once after cloning this repository:
+- 油门和刹车双按键操作，小车物理模拟
+- 无尽地图，有山地、沙漠、石林、雪山等地形
+- 金币、燃油罐、跳蚤、火箭、雪人、仙人掌等拾取物
+- 里程记分，燃油管理以及空翻特技加分
+- 8Bit 风格音效、BGM 和动态引擎声
+- CRT 着色器，高帧率渲染插值，窗口动态调整
+
+【todo 各种图】
+
+## 操作
+
+- `Right` / `Space` / `D` ：油门
+- `Left` / `A` ：刹车 / 倒车
+- `R`：重开
+- `Esc`：暂停菜单
+
+## 美术
+
+### Sprites
+
+贴图都是在 Figma 里画的（给自己上难度这一块），工程源文件在 `art.fig`，可以直接导入 Figma 打开
+
+【todo figma图】
+
+游戏背景的天空、大海、云朵、星星和山体是直接 raylib API 画的
+
+### CRT Shader
+
+之前一直很喜欢动物井和小丑牌的 CRT 滤镜效果，这次终于有机会试试～
+
+参考视频和代码：https://www.youtube.com/watch?v=28u6RoYiCWI
+
+【todo shader 对比】
+
+## 音效
+
+音效统一为 8Bit 风格
+
+### SFX
+
+所有道具以及小车 SFX 都是在 [bfxr](https://www.bfxr.net/) 在线效果器上调出来的，非常好用～
+
+音效文件夹 `assets/audio/sfx` 里都留有音效的 `.bfxr` 源数据格式，可以方便导回去调参修改
+
+x引擎动态音效：是从 [Freesound](https://freesound.org/people/EVRetro/sounds/519073/) 里截取了一段可 loop 的引擎音效，然后程序根据 input 和小车速度等状态，动态改变音量和音调
+
+### BGM
+
+BGM 来自 [Not Jam](https://not-jam.itch.io/not-jam-music-pack)，有个状态机来维护平静和刺激的 BGM 切换，以及每一轮的 BGM 随机抽取
+
+## 构建
+
+### 依赖
+
+首先运行依赖拉取脚本：
 
 ```bash
 python3 fetch_repos.py
 ```
 
-It clones the dependencies listed in `repos.json` into `dependencies/`. Only
-`git` and Python 3 (standard library) are required. CMake will also refuse to
-configure until the dependencies are present.
+### 桌面端（Linux / macOS）
 
-System packages expected by the build:
-
-- CMake and a C/C++ compiler
-- Desktop build on Linux: OpenGL and X11 development packages
-- Desktop build on macOS: no extra packages (uses the system frameworks)
-- Device build: framebuffer device (`/dev/fb0`) and evdev input access
-- Optional DRM raylib build: DRM/GBM/EGL/GLES development packages
-- `aarch64-linux-gnu-gcc/g++` for cross-building the CardputerZero package
-
-Project dependencies pulled from `repos.json`:
-
-- `raylib`
-- `box2d`
-
-## Build
-
-### Desktop (Linux / macOS)
-
-For desktop development and testing:
+#### 编译
 
 ```bash
 cmake -S . -B build/desktop -DRIDGEDASH_RAYLIB_PLATFORM=Desktop
 cmake --build build/desktop -j8
+```
+
+#### 运行
+
+```bash
 ./dist/RidgeDash
 ```
 
-raylib selects the appropriate desktop backend automatically (X11/OpenGL on
-Linux, Cocoa/OpenGL on macOS).
+##### 窗口大小
 
-The desktop window defaults to a 3x display scale while keeping the game logic
-at 320x170. Override it with:
+桌面窗口默认以 3 倍显示缩放，可以环境变量指定默认：
 
 ```bash
 RIDGEDASH_WINDOW_SCALE=4 ./dist/RidgeDash
 ```
 
-`RIDGEDASH_RENDER_SCALE` controls supersampling for raylib targets. It defaults
-to 2x for Desktop and DRM, and remains 1x for FBDEV. On desktop, the render
-target uses at least the window scale so enlarged windows stay crisp.
+`RIDGEDASH_RENDER_SCALE` 控制 raylib 目标的超采样倍率，Desktop 与 DRM 默认 2x、FBDEV 保持 1x
 
-`RIDGEDASH_TARGET_FPS` sets the desktop render frame rate. It defaults to `60`
-and is clamped to the `30`–`240` range. Set it to `0` or `unlimited` to uncap
-the frame rate:
+桌面端渲染目标至少取窗口缩放倍率，保证放大窗口后依然清晰
+
+##### 渲染帧率
+
+`RIDGEDASH_TARGET_FPS` 设置桌面渲染帧率，默认 `60`，取值钳制在 `30`–`240`。设为 `0` 或 `unlimited` 则不限帧率：
 
 ```bash
 RIDGEDASH_TARGET_FPS=120 ./dist/RidgeDash
 RIDGEDASH_TARGET_FPS=unlimited ./dist/RidgeDash
 ```
 
-Physics always runs at a fixed 60Hz regardless of the render rate; rendering
-interpolates between physics steps so motion stays smooth at any frame rate.
+无论渲染帧率多少，物理帧率始终固定 60Hz，渲染会在物理步之间插值
 
-For terrain/pickup tuning, force a specific terrain profile at runtime:
+##### 地形调试
+
+调试地形/拾取物时，可在运行时强制指定某个地形剖面：
 
 ```bash
 RIDGEDASH_TEST_TERRAIN=desert ./dist/RidgeDash
 ```
 
-Supported values include `mountain`, `stone`, `desert`, `snow`, and exact
-profile names such as `rolling`, `ridges`, `steps`, or `valley`. Leave it unset
-for normal random terrain.
+支持的值包括 `mountain`、`stone`、`desert`、`snow`，以及精确的剖面名如 `rolling`、`ridges`、`steps`、`valley`
+
+留空则为正常随机地形
 
 ### CardputerZero
 
-For the CardputerZero framebuffer build:
+#### 编译
 
 ```bash
 cmake -S . -B build/cp0 -DRIDGEDASH_RAYLIB_PLATFORM=FBDEV
 cmake --build build/cp0 -j8
 ```
 
-For a cross build from x86 Linux with the GNU aarch64 toolchain:
+在 x86 Linux 上用 GNU aarch64 工具链交叉构建：
 
 ```bash
 cmake -S . -B build/cp0 \
@@ -95,73 +132,55 @@ cmake -S . -B build/cp0 \
 cmake --build build/cp0 -j8
 ```
 
-Raylib's optional DRM backend links against target `GLESv2`, `EGL`, `DRM`, and `GBM`
-libraries. For cross builds, the matching `arm64` development packages must be
-available to the cross linker. If your host apt sources do not provide them,
-build the package directly on the CardputerZero.
+## 打包
 
-The output binary is `dist/RidgeDash`.
+### macOS（.app）
 
-## Controls
-
-- `Right` / `Space` / `D` / `C` / `7`: throttle
-- `Left` / `A` / `Z` / `5`: brake/reverse
-- `R`: restart
-- `Esc`: exit
-
-## Package
-
-Distributable packages are built per target platform. Each supported target gets
-its own section below; more are planned. All packaging artifacts are written to
-`dist/artifacts/` (the `dist/` root itself only holds the local desktop dev build).
-
-### macOS (.app)
-
-On macOS (Apple Silicon), build an ad-hoc `RidgeDash.app` and zip it:
+在 macOS（Apple Silicon）上构建一个 ad-hoc 的 `RidgeDash.app` 并打包成 zip：
 
 ```bash
 ./packaging/macos/package_macos.sh
 ```
 
-The generated archive is written to:
+打包产物：
 
 ```text
 dist/artifacts/RidgeDash-macos-arm64.zip
 ```
 
-The app is arm64-only and **not code-signed**, so the first launch needs a
-right-click → Open (or `xattr -dr com.apple.quarantine RidgeDash.app`) to get past
-Gatekeeper.
+该 app 仅 arm64、**未签名**，所以首次打开需要右键 → 打开（或执行`xattr -dr com.apple.quarantine RidgeDash.app`）以绕过 Gatekeeper
 
-### CardputerZero (Debian package)
+### CardputerZero（Deb）
 
-Build the CardputerZero `.deb`:
+构建 CardputerZero 的 `.deb`：
 
 ```bash
 ./packaging/cardputer/package_cardputer.sh
 ```
 
-The script defaults to `RIDGEDASH_PACKAGE_PLATFORM=AUTO`. This builds a small
-launcher wrapper plus both render backends:
+脚本默认 `RIDGEDASH_PACKAGE_PLATFORM=AUTO`，会构建一个小的启动器包装 + 两种渲染后端：
 
-- `DRM` is tried first for GPU/KMS acceleration.
-- `FBDEV` is used automatically if DRM initialization fails.
+- 优先尝试 `DRM`（GPU/KMS 加速）。
+- `DRM` 初始化失败时自动回退 `FBDEV`。
 
-Override it if you need to force one backend:
+需要强制某一后端时可覆盖：
 
 ```bash
 RIDGEDASH_PACKAGE_PLATFORM=FBDEV ./packaging/cardputer/package_cardputer.sh
 RIDGEDASH_PACKAGE_PLATFORM=Desktop ./packaging/cardputer/package_cardputer.sh
 ```
 
-At runtime, force the fallback renderer with:
+运行时强制使用回退渲染器：
 
 ```bash
 RIDGEDASH_RENDER=fbdev RidgeDash
 ```
 
-The generated package is written to `dist/artifacts/`:
+打包产物：
 
 ```text
-dist/artifacts/m5cardputerzero-ridgedash_0.1.0_m5stack1_arm64.deb
+dist/artifacts/m5cardputerzero-ridgedash_x.x.x_m5stack1_arm64.deb
 ```
+
+## 致谢
+
