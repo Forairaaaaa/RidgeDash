@@ -235,6 +235,7 @@ int main()
 #if defined(RIDGEDASH_DESKTOP_RENDER)
         game.setDisplayScaleOption(displayOption);
         game.setCrtEnabled(crtEnabled);
+        bool cursorHiddenForFullscreen = false;
         // Interpolate rendering whenever the frame rate isn't locked to the physics
         // rate (uncapped or >60). At exactly 60 the live path renders identically.
         game.setInterpolationEnabled(desktopFps == 0 || desktopFps > 60);
@@ -247,6 +248,17 @@ int main()
             }
             if (bool requested = false; game.consumeCrtRequest(requested)) {
                 crtEnabled = requested && crtLoaded;
+            }
+            // Hide the cursor whenever the window is fullscreen (covers both the menu
+            // and the OS green-button / shortcut), show it otherwise. Tracked so we
+            // only toggle on change.
+            if (const bool fs = ridge_dash::isNativeFullscreen(); fs != cursorHiddenForFullscreen) {
+                if (fs) {
+                    HideCursor();
+                } else {
+                    ShowCursor();
+                }
+                cursorHiddenForFullscreen = fs;
             }
 #endif
             game.update(GetFrameTime());
