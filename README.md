@@ -112,18 +112,37 @@ The output binary is `dist/RidgeDash`.
 ## Package
 
 Distributable packages are built per target platform. Each supported target gets
-its own section below; more are planned.
+its own section below; more are planned. All packaging artifacts are written to
+`dist/artifacts/` (the `dist/` root itself only holds the local desktop dev build).
+
+### macOS (.app)
+
+On macOS (Apple Silicon), build an ad-hoc `RidgeDash.app` and zip it:
+
+```bash
+./packaging/macos/package_macos.sh
+```
+
+The generated archive is written to:
+
+```text
+dist/artifacts/RidgeDash-macos-arm64.zip
+```
+
+The app is arm64-only and **not code-signed**, so the first launch needs a
+right-click → Open (or `xattr -dr com.apple.quarantine RidgeDash.app`) to get past
+Gatekeeper.
 
 ### CardputerZero (Debian package)
 
 Build the CardputerZero `.deb`:
 
 ```bash
-./packaging/deb/package_deb.sh
+./packaging/cardputer/package_cardputer.sh
 ```
 
-The package script defaults to `RIDGEDASH_PACKAGE_PLATFORM=AUTO`. This builds a
-small launcher wrapper plus both render backends:
+The script defaults to `RIDGEDASH_PACKAGE_PLATFORM=AUTO`. This builds a small
+launcher wrapper plus both render backends:
 
 - `DRM` is tried first for GPU/KMS acceleration.
 - `FBDEV` is used automatically if DRM initialization fails.
@@ -131,8 +150,8 @@ small launcher wrapper plus both render backends:
 Override it if you need to force one backend:
 
 ```bash
-RIDGEDASH_PACKAGE_PLATFORM=FBDEV ./packaging/deb/package_deb.sh
-RIDGEDASH_PACKAGE_PLATFORM=Desktop ./packaging/deb/package_deb.sh
+RIDGEDASH_PACKAGE_PLATFORM=FBDEV ./packaging/cardputer/package_cardputer.sh
+RIDGEDASH_PACKAGE_PLATFORM=Desktop ./packaging/cardputer/package_cardputer.sh
 ```
 
 At runtime, force the fallback renderer with:
@@ -141,8 +160,8 @@ At runtime, force the fallback renderer with:
 RIDGEDASH_RENDER=fbdev RidgeDash
 ```
 
-The generated package is written to `dist/`:
+The generated package is written to `dist/artifacts/`:
 
 ```text
-dist/m5cardputerzero-ridgedash_0.1.0_m5stack1_arm64.deb
+dist/artifacts/m5cardputerzero-ridgedash_0.1.0_m5stack1_arm64.deb
 ```

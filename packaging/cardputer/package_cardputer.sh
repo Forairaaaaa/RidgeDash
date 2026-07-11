@@ -10,7 +10,10 @@ MAINTAINER="${MAINTAINER:-m5stack <m5stack@m5stack.com>}"
 PARALLEL="${PARALLEL:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/package}"
 STAGE_DIR="${STAGE_DIR:-${ROOT_DIR}/build/deb-root}"
-DIST_DIR="${DIST_DIR:-${ROOT_DIR}/dist}"
+# Assemble the launcher + per-backend binaries under build/ so we never clobber the
+# desktop dev build's dist/RidgeDash. Only the final .deb lands in dist/artifacts/.
+PKG_STAGE="${PKG_STAGE:-${ROOT_DIR}/build/cardputer-pkg}"
+DIST_DIR="${DIST_DIR:-${ROOT_DIR}/dist/artifacts}"
 BIN_NAME="RidgeDash"
 CMAKE_BIN="${CMAKE:-cmake}"
 CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
@@ -89,15 +92,18 @@ EOF
     "${CMAKE_BIN}" --build "${build_dir}" -j"${PARALLEL}"
 }
 
+rm -rf "${PKG_STAGE}"
+mkdir -p "${PKG_STAGE}"
+
 if [[ "${RAYLIB_PLATFORM}" == "AUTO" ]]; then
     configure_and_build "DRM" "${BUILD_DIR}-drm"
     PACKAGE_VERSION="$(read_cmake_cache_value CMAKE_PROJECT_VERSION "${BUILD_DIR}-drm")"
-    cp "${ROOT_DIR}/dist/${BIN_NAME}" "${ROOT_DIR}/dist/${BIN_NAME}.drm"
+    cp "${ROOT_DIR}/dist/${BIN_NAME}" "${PKG_STAGE}/${BIN_NAME}.drm"
 
     configure_and_build "FBDEV" "${BUILD_DIR}-fbdev"
-    cp "${ROOT_DIR}/dist/${BIN_NAME}" "${ROOT_DIR}/dist/${BIN_NAME}.fbdev"
+    cp "${ROOT_DIR}/dist/${BIN_NAME}" "${PKG_STAGE}/${BIN_NAME}.fbdev"
 
-    cat >"${ROOT_DIR}/dist/${BIN_NAME}" <<EOF
+    cat >"${PKG_STAGE}/${BIN_NAME}" <<EOF
 #!/bin/sh
 set -u
 DIR="\$(CDPATH= cd -- "\$(dirname -- "\$0")" && pwd)"
@@ -122,10 +128,11 @@ fi
 
 exec "\${FBDEV}" "\$@"
 EOF
-    chmod 755 "${ROOT_DIR}/dist/${BIN_NAME}"
+    chmod 755 "${PKG_STAGE}/${BIN_NAME}"
 elif [[ "${RAYLIB_PLATFORM}" == "DRM" || "${RAYLIB_PLATFORM}" == "Desktop" || "${RAYLIB_PLATFORM}" == "FBDEV" ]]; then
     configure_and_build "${RAYLIB_PLATFORM}" "${BUILD_DIR}"
     PACKAGE_VERSION="$(read_cmake_cache_value CMAKE_PROJECT_VERSION)"
+    cp "${ROOT_DIR}/dist/${BIN_NAME}" "${PKG_STAGE}/${BIN_NAME}"
 else
     cat >&2 <<EOF
 Unsupported RIDGEDASH_PACKAGE_PLATFORM=${RAYLIB_PLATFORM}
@@ -134,7 +141,7 @@ EOF
     exit 1
 fi
 
-EXECUTABLE="${ROOT_DIR}/dist/${BIN_NAME}"
+EXECUTABLE="${PKG_STAGE}/${BIN_NAME}"
 DESKTOP_TEMPLATE="${SCRIPT_DIR}/ridgedash.desktop.in"
 ICON_FILE="${SCRIPT_DIR}/images/ridgedash.png"
 
@@ -156,8 +163,8 @@ mkdir -p \
 
 install -m 755 "${EXECUTABLE}" "${STAGE_DIR}/usr/share/APPLaunch/bin/${BIN_NAME}"
 if [[ "${RAYLIB_PLATFORM}" == "AUTO" ]]; then
-    install -m 755 "${ROOT_DIR}/dist/${BIN_NAME}.drm" "${STAGE_DIR}/usr/share/APPLaunch/bin/${BIN_NAME}.drm"
-    install -m 755 "${ROOT_DIR}/dist/${BIN_NAME}.fbdev" "${STAGE_DIR}/usr/share/APPLaunch/bin/${BIN_NAME}.fbdev"
+    install -m 755 "${PKG_STAGE}/${BIN_NAME}.drm" "${STAGE_DIR}/usr/share/APPLaunch/bin/${BIN_NAME}.drm"
+    install -m 755 "${PKG_STAGE}/${BIN_NAME}.fbdev" "${STAGE_DIR}/usr/share/APPLaunch/bin/${BIN_NAME}.fbdev"
 fi
 install -m 644 "${DESKTOP_TEMPLATE}" "${STAGE_DIR}/usr/share/APPLaunch/applications/ridgedash.desktop"
 install -m 644 "${ICON_FILE}" "${STAGE_DIR}/usr/share/APPLaunch/share/images/ridgedash.png"

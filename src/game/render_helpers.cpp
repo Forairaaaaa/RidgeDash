@@ -31,10 +31,11 @@ bool textureLoaded(const Texture2D& texture)
 Texture2D loadSpriteTexture(const char* fileName)
 {
     const std::string appDir = GetApplicationDirectory();
-    const std::array<std::string, 5> candidates = {
+    const std::array<std::string, 6> candidates = {
         std::string("assets/sprites/") + fileName,
         appDir + "assets/sprites/" + fileName,
         appDir + "../assets/sprites/" + fileName,
+        appDir + "../Resources/assets/sprites/" + fileName, // macOS .app bundle
         appDir + "../share/ridgedash/sprites/" + fileName,
         std::string("/usr/share/APPLaunch/share/ridgedash/sprites/") + fileName,
     };

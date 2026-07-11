@@ -53,13 +53,14 @@ float frameFactor(float k, float dt)
 }
 
 // Candidate on-disk locations for an audio file relative to assets/audio/.
-std::array<std::string, 5> audioCandidates(const std::string& rel)
+std::array<std::string, 6> audioCandidates(const std::string& rel)
 {
     const std::string appDir = GetApplicationDirectory();
     return {
         "assets/audio/" + rel,
         appDir + "assets/audio/" + rel,
         appDir + "../assets/audio/" + rel,
+        appDir + "../Resources/assets/audio/" + rel, // macOS .app bundle
         appDir + "../share/ridgedash/audio/" + rel,
         "/usr/share/APPLaunch/share/ridgedash/audio/" + rel,
     };
@@ -87,15 +88,7 @@ std::vector<std::string> discoverBgm(const char* subdir)
 
 Music loadEngineMusic()
 {
-    const std::string appDir = GetApplicationDirectory();
-    const std::array<std::string, 5> candidates = {
-        std::string("assets/audio/engine_loop.wav"),
-        appDir + "assets/audio/engine_loop.wav",
-        appDir + "../assets/audio/engine_loop.wav",
-        appDir + "../share/ridgedash/audio/engine_loop.wav",
-        std::string("/usr/share/APPLaunch/share/ridgedash/audio/engine_loop.wav"),
-    };
-    for (const std::string& path : candidates) {
+    for (const std::string& path : audioCandidates("engine_loop.wav")) {
         if (!FileExists(path.c_str())) {
             continue;
         }
@@ -110,15 +103,7 @@ Music loadEngineMusic()
 // Resolve an sfx file the same way sprites/music are resolved, then load it.
 Sound loadSfx(const char* fileName)
 {
-    const std::string appDir = GetApplicationDirectory();
-    const std::array<std::string, 5> candidates = {
-        std::string("assets/audio/sfx/") + fileName,
-        appDir + "assets/audio/sfx/" + fileName,
-        appDir + "../assets/audio/sfx/" + fileName,
-        appDir + "../share/ridgedash/audio/sfx/" + fileName,
-        std::string("/usr/share/APPLaunch/share/ridgedash/audio/sfx/") + fileName,
-    };
-    for (const std::string& path : candidates) {
+    for (const std::string& path : audioCandidates(std::string("sfx/") + fileName)) {
         if (!FileExists(path.c_str())) {
             continue;
         }

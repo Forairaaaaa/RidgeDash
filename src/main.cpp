@@ -216,9 +216,16 @@ int main()
     int crtResolutionLoc = -1;
     int crtTimeLoc = -1;
     bool crtLoaded = false;
-    for (const char* path : {"assets/shaders/crt.fs", "../assets/shaders/crt.fs"}) {
-        if (FileExists(path)) {
-            crtShader = LoadShader(nullptr, path);
+    const std::string crtAppDir = GetApplicationDirectory();
+    const std::string crtCandidates[] = {
+        "assets/shaders/crt.fs",
+        crtAppDir + "assets/shaders/crt.fs",
+        crtAppDir + "../assets/shaders/crt.fs",
+        crtAppDir + "../Resources/assets/shaders/crt.fs", // macOS .app bundle
+    };
+    for (const std::string& path : crtCandidates) {
+        if (FileExists(path.c_str())) {
+            crtShader = LoadShader(nullptr, path.c_str());
             if (IsShaderValid(crtShader)) {
                 crtResolutionLoc = GetShaderLocation(crtShader, "uResolution");
                 crtTimeLoc = GetShaderLocation(crtShader, "uTime");
