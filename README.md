@@ -1,7 +1,7 @@
 # RidgeDash
 
-Two-button driving game prototype, inspired by
-[Hill Climb Racing](https://en.wikipedia.org/wiki/Hill_Climb_Racing).
+A fast-paced, arcade-style 2D physics driving game controlled with just two
+buttons, inspired by [Hill Climb Racing](https://en.wikipedia.org/wiki/Hill_Climb_Racing).
 
 ## Dependencies
 
@@ -18,7 +18,8 @@ configure until the dependencies are present.
 System packages expected by the build:
 
 - CMake and a C/C++ compiler
-- Desktop raylib build: OpenGL and X11 development packages
+- Desktop build on Linux: OpenGL and X11 development packages
+- Desktop build on macOS: no extra packages (uses the system frameworks)
 - Device build: framebuffer device (`/dev/fb0`) and evdev input access
 - Optional DRM raylib build: DRM/GBM/EGL/GLES development packages
 - `aarch64-linux-gnu-gcc/g++` for cross-building the CardputerZero package
@@ -30,13 +31,18 @@ Project dependencies pulled from `repos.json`:
 
 ## Build
 
-For Linux desktop testing:
+### Desktop (Linux / macOS)
+
+For desktop development and testing:
 
 ```bash
 cmake -S . -B build/desktop -DRIDGEDASH_RAYLIB_PLATFORM=Desktop
 cmake --build build/desktop -j8
 ./dist/RidgeDash
 ```
+
+raylib selects the appropriate desktop backend automatically (X11/OpenGL on
+Linux, Cocoa/OpenGL on macOS).
 
 The desktop window defaults to a 3x display scale while keeping the game logic
 at 320x170. Override it with:
@@ -71,14 +77,16 @@ Supported values include `mountain`, `stone`, `desert`, `snow`, and exact
 profile names such as `rolling`, `ridges`, `steps`, or `valley`. Leave it unset
 for normal random terrain.
 
-For CardputerZero framebuffer build:
+### CardputerZero
+
+For the CardputerZero framebuffer build:
 
 ```bash
 cmake -S . -B build/cp0 -DRIDGEDASH_RAYLIB_PLATFORM=FBDEV
 cmake --build build/cp0 -j8
 ```
 
-For cross build from x86 Linux with the GNU aarch64 toolchain:
+For a cross build from x86 Linux with the GNU aarch64 toolchain:
 
 ```bash
 cmake -S . -B build/cp0 \
@@ -103,7 +111,12 @@ The output binary is `dist/RidgeDash`.
 
 ## Package
 
-Build the cp0/CardputerZero Debian package:
+Distributable packages are built per target platform. More targets are planned;
+each gets its own section below.
+
+### CardputerZero (Debian package)
+
+Build the CardputerZero `.deb`:
 
 ```bash
 ./packaging/deb/package_deb.sh
