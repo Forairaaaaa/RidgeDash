@@ -31,6 +31,15 @@ float wrapAngleDelta(float delta)
     return delta;
 }
 
+// Number of full flips represented by an accumulated absolute rotation. Matches
+// the landing scoring: first flip at kFlipBonusAngle, then one per full turn.
+int flipCountFor(float flipAmount)
+{
+    return flipAmount >= game_config::kFlipBonusAngle
+               ? 1 + static_cast<int>((flipAmount - game_config::kFlipBonusAngle) / kTwoPi)
+               : 0;
+}
+
 } // namespace
 
 using namespace game_config;
@@ -40,6 +49,7 @@ void TrickTracker::reset()
     _airTime = 0.0f;
     _flipAngle = 0.0f;
     _lastFlipAngle = 0.0f;
+    _announcedFlips = 0;
     _wasAirborne = false;
 }
 
@@ -59,6 +69,7 @@ TrickTracker::Bonus TrickTracker::update(float dt, const Sample& sample)
         if (!_wasAirborne) {
             _airTime = 0.0f;
             _flipAngle = 0.0f;
+            _announcedFlips = 0;
             _lastFlipAngle = sample.angle;
         } else {
             _flipAngle += wrapAngleDelta(sample.angle - _lastFlipAngle);
@@ -66,19 +77,33 @@ TrickTracker::Bonus TrickTracker::update(float dt, const Sample& sample)
         _lastFlipAngle = sample.angle;
         _airTime += dt;
         _wasAirborne = true;
-        return {};
+
+        // Credit each flip the moment it is recognised, mid-air, so the score,
+        // popup and sound fire immediately and keep counting up (FLIP, 2x FLIP, ...).
+        Bonus bonus{};
+        const int flips = flipCountFor(std::abs(_flipAngle));
+        if (flips > _announcedFlips) {
+            _announcedFlips = flips;
+            bonus.newFlip = true;
+            bonus.flipIndex = flips;
+        }
+        return bonus;
     }
 
+    // Catch a flip that completed on the exact touchdown frame.
     Bonus bonus{};
     if (_wasAirborne && _airTime > 0.10f) {
-        const float flipAmount = std::abs(_flipAngle);
-        bonus.flips = flipAmount >= kFlipBonusAngle ? 1 + static_cast<int>((flipAmount - kFlipBonusAngle) / kTwoPi) : 0;
-        bonus.score = bonus.flips * kFlipBonusScore;
+        const int flips = flipCountFor(std::abs(_flipAngle));
+        if (flips > _announcedFlips) {
+            bonus.newFlip = true;
+            bonus.flipIndex = flips;
+        }
     }
 
     _wasAirborne = false;
     _airTime = 0.0f;
     _flipAngle = 0.0f;
+    _announcedFlips = 0;
     _lastFlipAngle = sample.angle;
     return bonus;
 }

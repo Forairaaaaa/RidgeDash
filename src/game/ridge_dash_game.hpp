@@ -14,6 +14,7 @@
 #include "game/ui/game_input.hpp"
 #include "game/ui/game_ui.hpp"
 #include "game/ui/pause_menu_controller.hpp"
+#include "game/audio/audio_system.hpp"
 #include "game/pickups/pickups.hpp"
 #include "game/run/run_controller.hpp"
 #include "game/run/run_records.hpp"
@@ -47,6 +48,7 @@ public:
     void setInterpolationEnabled(bool enabled);
     bool renderInterpolation() const;
     float renderAlpha() const;
+    void playSfx(AudioSystem::Sfx id);
 
 private:
     friend class PickupSystem;
@@ -96,6 +98,8 @@ private:
     void updateCamera(float dt);
     void updateEnvironmentBiome(float dt);
     void updateDriverExpression(float dt);
+    void updateEngineAudio(float dt);
+    void updateBgmAudio(float dt);
     void updatePauseMenu(float dt);
     void enterPauseMenu();
     void exitPauseMenu();
@@ -120,6 +124,7 @@ private:
     GameUi _ui;
     GameInput _input;
     PauseMenuController _pauseMenu;
+    AudioSystem _audio;
     std::mt19937 _rng;
     RunRecords _runRecords;
     RunController _runController;
@@ -130,6 +135,8 @@ private:
     TrickTracker _trickTracker;
     float _startX = 0.0f;
     uint32_t _runSeed = 0;
+    bool _bgmIntense = false;   // current calm/intense BGM state (hysteresis)
+    float _bgmCalmTimer = 0.0f; // dwell time spent slow before switching back to calm
     bool _quitRequested = false;
 };
 

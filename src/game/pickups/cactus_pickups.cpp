@@ -183,6 +183,7 @@ bool CactusPickups::hit(RidgeDashGame& game, Item& cactus)
     cactus.wobbleVelocity += -direction * (16.0f + std::min(std::abs(velocity.x), 12.0f));
     spawnChips(game, {cactus.pos.x, cactus.pos.y - 0.22f}, -direction);
     game._pickups.effects().spawn({cactus.pos.x, cactus.pos.y - 0.22f}, PickupEffects::Kind::Cactus, game._runSeed);
+    game.playSfx(AudioSystem::Sfx::Cactus);
     return true;
 }
 

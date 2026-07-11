@@ -146,6 +146,7 @@ bool RocketPickups::collect(RidgeDashGame& game, Item& rocket)
                                   -(8.2f + std::max(0.0f, velocity.y) * 0.18f)};
     game._vehicle.applyChassisDeltaVelocity(deltaVelocity);
     game._vehicle.applyChassisAngularImpulse(-0.18f);
+    game.playSfx(AudioSystem::Sfx::Rocket);
     return true;
 }
 
@@ -213,6 +214,7 @@ void RocketPickups::update(RidgeDashGame& game, float dt)
     if (_flightTimer <= 0.0f) {
         const b2Vec2 boom = game._vehicle.chassisWorldPoint({-0.08f, 0.58f});
         game._pickups.effects().spawn({boom.x, boom.y}, PickupEffects::Kind::Rocket, game._runSeed);
+        game.playSfx(AudioSystem::Sfx::RocketFinish);
         _flightActive = false;
         _flightTimer = 0.0f;
         _trailRemainder = 0.0f;

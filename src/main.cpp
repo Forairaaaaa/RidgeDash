@@ -154,6 +154,9 @@ int main()
         CloseWindow();
         return 2;
     }
+#if defined(RIDGEDASH_ENABLE_AUDIO)
+    InitAudioDevice();
+#endif
 #if !defined(RIDGEDASH_USE_FBDEV)
     SetExitKey(KEY_NULL);
 #endif
@@ -285,6 +288,9 @@ int main()
     unloadRenderTarget();
 #endif
 
+#if defined(RIDGEDASH_ENABLE_AUDIO)
+    CloseAudioDevice();
+#endif
     RidgeDashInputShutdown();
     CloseWindow();
     return 0;
