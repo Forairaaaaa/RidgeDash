@@ -111,8 +111,8 @@ The output binary is `dist/RidgeDash`.
 
 ## Package
 
-Distributable packages are built per target platform. More targets are planned;
-each gets its own section below.
+Distributable packages are built per target platform. Each supported target gets
+its own section below; more are planned.
 
 ### CardputerZero (Debian package)
 
