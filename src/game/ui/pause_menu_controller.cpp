@@ -41,6 +41,21 @@ PauseMenuController::Action PauseMenuController::update(const GameInput::Menu& i
     if (input.confirm && ui.pauseSelection() == 2) {
         action = Action::QuitGame;
     }
+#elif defined(RIDGEDASH_WEB)
+    constexpr int kOptionCount = 2; // 0 = CRT, 1 = EXIT
+    if (input.up) {
+        ui.setPauseSelection((ui.pauseSelection() + kOptionCount - 1) % kOptionCount);
+    }
+    if (input.down) {
+        ui.setPauseSelection((ui.pauseSelection() + 1) % kOptionCount);
+    }
+    if (ui.pauseSelection() == 0 && (input.left || input.right || input.confirm)) {
+        _crtEnabled = !_crtEnabled;
+        _crtRequestPending = true;
+    }
+    if (ui.pauseSelection() == 1 && input.confirm) {
+        action = Action::QuitGame;
+    }
 #else
     ui.setPauseSelection(0);
     if (input.confirm) {

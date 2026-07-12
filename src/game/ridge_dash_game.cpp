@@ -311,8 +311,8 @@ void RidgeDashGame::updateBgmAudio(float dt)
 
     AudioSystem::BgmState state{};
     state.intense = _bgmIntense;
-    state.audible = !_runController.paused();   // paused -> duck
-    state.active = !_runController.gameOver();   // game over -> fade out
+    state.audible = !_runController.paused();  // paused -> duck
+    state.active = !_runController.gameOver(); // game over -> fade out
     _audio.updateBgm(dt, state);
 }
 
@@ -443,7 +443,9 @@ void RidgeDashGame::updateCamera(float dt)
     // factor = 1 - (1 - k)^(dt / kPhysicsStep) reproduces the old behaviour exactly
     // when dt == kPhysicsStep.
     const float stepRatio = dt / kPhysicsStep;
-    auto frameFactor = [stepRatio](float k) { return 1.0f - std::pow(1.0f - k, stepRatio); };
+    auto frameFactor = [stepRatio](float k) {
+        return 1.0f - std::pow(1.0f - k, stepRatio);
+    };
 
     const b2Vec2 pos = _vehicle.chassisPosition();
     const b2Vec2 vel = _vehicle.chassisVelocity();

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>RidgeDash</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #0a0a0a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    /* Scale the 640×340 canvas to fill the viewport while keeping 320:170 ratio.
+       image-rendering: pixelated preserves the crisp pixel-art look. */
+    #canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      width:  min(100vw, calc(100vh * 320 / 170));
+      height: min(100vh, calc(100vw * 170 / 320));
+    }
+
+    /* Loading overlay — hidden once the Module signals ready. */
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
+      background: #0a0a0a;
+      color: #888;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 13px;
+      z-index: 10;
+      transition: opacity 0.3s;
+    }
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #loading-title {
+      color: #ddd;
+      font-size: 20px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    progress {
+      width: 220px;
+      height: 4px;
+      appearance: none;
+      border: none;
+      border-radius: 2px;
+      background: #222;
+      overflow: hidden;
+    }
+    progress::-webkit-progress-bar { background: #222; border-radius: 2px; }
+    progress::-webkit-progress-value { background: #e05050; border-radius: 2px; }
+    progress::-moz-progress-bar { background: #e05050; border-radius: 2px; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+
+  <div id="loading">
+    <div id="loading-title">RidgeDash</div>
+    <div id="loading-label">Loading…</div>
+    <progress id="loading-progress" value="0" max="100"></progress>
+  </div>
+
+  <script>
+    var loadingEl  = document.getElementById('loading');
+    var progressEl = document.getElementById('loading-progress');
+    var labelEl    = document.getElementById('loading-label');
+
+    // ── AudioContext resume ──────────────────────────────────────────────────
+    // Chrome/Safari block AudioContext until a user gesture.  Intercept the
+    // constructor so we can resume every context created by miniaudio/raylib
+    // on the first meaningful input event.
+    var _trackedAudioContexts = [];
+    (function() {
+      var OrigAudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!OrigAudioContext) return;
+      var PatchedAudioContext = function() {
+        var ctx = new OrigAudioContext(...arguments);
+        _trackedAudioContexts.push(ctx);
+        return ctx;
+      };
+      PatchedAudioContext.prototype = OrigAudioContext.prototype;
+      window.AudioContext = window.webkitAudioContext = PatchedAudioContext;
+    })();
+
+    function resumeAllAudioContexts() {
+      _trackedAudioContexts.forEach(function(ctx) {
+        if (ctx.state === 'suspended') ctx.resume();
+      });
+    }
+    ['click', 'keydown', 'touchstart'].forEach(function(ev) {
+      window.addEventListener(ev, resumeAllAudioContexts, { once: false, passive: true });
+    });
+    // ────────────────────────────────────────────────────────────────────────
+
+    var Module = {
+      canvas: document.getElementById('canvas'),
+
+      setStatus: function(text) {
+        if (!text) {
+          loadingEl.classList.add('hidden');
+          return;
+        }
+        var match = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+        if (match) {
+          var pct = (parseInt(match[2]) / parseInt(match[4])) * 100;
+          progressEl.value = pct;
+          labelEl.textContent = match[1].trim() + ' ' + Math.round(pct) + '%';
+        } else {
+          labelEl.textContent = text;
+        }
+      },
+
+      onRuntimeInitialized: function() {
+        loadingEl.classList.add('hidden');
+      },
+
+      print:    function(text) { console.log(text); },
+      printErr: function(text) { console.error(text); },
+    };
+
+    // Suppress the default Emscripten status banner.
+    window.onerror = function() { return true; };
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>
