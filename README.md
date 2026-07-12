@@ -81,10 +81,10 @@ cmake --build build/desktop -j8
 
 ##### 窗口大小
 
-桌面窗口默认以 3 倍显示缩放，可以环境变量指定默认：
+桌面窗口默认以 4 倍显示缩放，可以环境变量指定默认：
 
 ```bash
-RIDGEDASH_WINDOW_SCALE=4 ./dist/RidgeDash
+RIDGEDASH_WINDOW_SCALE=fullscreen ./dist/RidgeDash
 ```
 
 `RIDGEDASH_RENDER_SCALE` 控制 raylib 目标的超采样倍率，Desktop 与 DRM 默认 2x、FBDEV 保持 1x

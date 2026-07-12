@@ -57,7 +57,7 @@ DisplayScaleOption initialDisplayScaleOption()
         }
         return static_cast<DisplayScaleOption>(std::clamp(std::atoi(value), 1, 4) - 1);
     }
-    return DisplayScaleOption::Scale3;
+    return DisplayScaleOption::Scale4;
 }
 
 // CRT post-process default from RIDGEDASH_CRT ("0"/"off" disables). Defaults on.
