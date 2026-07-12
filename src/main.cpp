@@ -46,7 +46,7 @@ int targetFps()
         }
         return std::clamp(std::atoi(value), 30, 240);
     }
-    return 60;
+    return 120;
 }
 
 DisplayScaleOption initialDisplayScaleOption()

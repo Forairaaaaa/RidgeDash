@@ -93,10 +93,10 @@ RIDGEDASH_WINDOW_SCALE=4 ./dist/RidgeDash
 
 ##### 渲染帧率
 
-`RIDGEDASH_TARGET_FPS` 设置桌面渲染帧率，默认 `60`，取值钳制在 `30`–`240`。设为 `0` 或 `unlimited` 则不限帧率：
+`RIDGEDASH_TARGET_FPS` 设置桌面渲染帧率，默认 `120`，取值钳制在 `30`–`240`。设为 `0` 或 `unlimited` 则不限帧率：
 
 ```bash
-RIDGEDASH_TARGET_FPS=120 ./dist/RidgeDash
+RIDGEDASH_TARGET_FPS=90 ./dist/RidgeDash
 RIDGEDASH_TARGET_FPS=unlimited ./dist/RidgeDash
 ```
 
