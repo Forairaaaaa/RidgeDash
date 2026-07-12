@@ -5,7 +5,7 @@
 A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill Climb Racing](https://en.wikipedia.org/wiki/Hill_Climb_Racing)
 
 - 油门和刹车双按键操作，小车物理模拟
-- 无尽地图，有山地、沙漠、石林、雪山等地形
+- 无尽地图，山地、沙漠、石林、雪山等不同地形
 - 金币、燃油罐、跳蚤、火箭、雪人、仙人掌等拾取物
 - 里程记分，燃油管理以及空翻特技加分
 - 8Bit 风格音效、BGM 和动态引擎声
@@ -32,7 +32,7 @@ A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill
 
 ### CRT Shader
 
-之前一直很喜欢动物井和小丑牌的 CRT 滤镜效果，这次终于有机会试试～
+一直很喜欢动物井和小丑牌的 CRT 滤镜效果，这次刚好有机会试试～
 
 参考视频和代码：https://www.youtube.com/watch?v=28u6RoYiCWI
 
@@ -181,6 +181,4 @@ RIDGEDASH_RENDER=fbdev RidgeDash
 ```text
 dist/artifacts/m5cardputerzero-ridgedash_x.x.x_m5stack1_arm64.deb
 ```
-
-## 致谢
 
