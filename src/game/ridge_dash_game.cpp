@@ -154,6 +154,15 @@ void RidgeDashGame::playSfx(AudioSystem::Sfx id)
     _audio.play(id);
 }
 
+void RidgeDashGame::reloadAudio()
+{
+    // Called on Web after InitAudioDevice() is deferred to the first user gesture.
+    // load() discovers paths and loads assets; startBgm() picks tracks and begins
+    // playback — both are no-ops when the device is not yet ready.
+    _audio.load();
+    _audio.startBgm();
+}
+
 void RidgeDashGame::destroyWorld()
 {
     if (b2World_IsValid(_worldId)) {

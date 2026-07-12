@@ -51,6 +51,8 @@ public:
     bool renderInterpolation() const;
     float renderAlpha() const;
     void playSfx(AudioSystem::Sfx id);
+    // Re-initialise audio after a deferred InitAudioDevice() call (Web).
+    void reloadAudio();
 
 private:
     friend class PickupSystem;
