@@ -43,7 +43,7 @@ constexpr float kBgmVolume = 1.00f;          // master ceiling for background mu
 constexpr float kBgmPauseDuck = 0.30f;       // volume multiplier while paused
 constexpr float kBgmCrossfadeTime = 1.3f;    // seconds to cross between calm and intense
 constexpr float kBgmMasterSmoothing = 0.10f; // per-60Hz-frame lerp for the master envelope
-constexpr float kBgmCalmResumeDelay = 5.0f; // hold calm silent after a reset (skip the
+constexpr float kBgmCalmResumeDelay = 5.0f;  // hold calm silent after a reset (skip the
                                              // calm->intense flash when relaunching fast)
 
 // Framerate-independent lerp factor (matches the camera/engine smoothing elsewhere).
@@ -268,7 +268,7 @@ void AudioSystem::startBgm()
         }
     }
 
-    _bgmActive = -1;                     // nothing playing yet
+    _bgmActive = -1; // nothing playing yet
     _bgmCalmFade = 0.0f;
     _bgmIntenseFade = 0.0f;
     _bgmMaster = 1.0f;                   // no master fade-in; tracks hard-start themselves
