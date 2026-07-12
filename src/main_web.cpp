@@ -23,11 +23,20 @@ constexpr int kScreenHeight = RIDGEDASH_SCREEN_HEIGHT;
 
 // 2× logical scale → 640×340 WebGL canvas.  CSS in the shell will stretch it
 // to fill the viewport while preserving the aspect ratio.
-constexpr int kWebScale = 2;
+constexpr int kWebScale    = 2;
+// 4× internal FBO → bilinear downsample to the 2× canvas = 4× SSAA.
+// Matches the desktop's supersample approach (fboSupersampleScale renders at
+// monitor-height / game-height, then bilinearly downscales to the window).
+constexpr int kWebFboScale = 4;
 
 struct WebState {
     ridge_dash::RidgeDashGame game;
     RenderTexture2D renderTarget{};
+    Shader crtShader{};
+    int crtResolutionLoc = -1;
+    int crtTimeLoc       = -1;
+    bool crtLoaded       = false;
+    bool crtEnabled      = false; // user-toggled; starts true if shader loaded
 };
 
 WebState* gState = nullptr;
@@ -40,11 +49,17 @@ void webFrame()
 
     gState->game.update(GetFrameTime());
 
+    // Sync CRT toggle requested from the pause menu.
+    if (bool requested = false; gState->game.consumeCrtRequest(requested)) {
+        gState->crtEnabled = requested && gState->crtLoaded;
+    }
+
     if (IsRenderTextureValid(gState->renderTarget)) {
-        // Render the game at 2× into the FBO, then blit to the screen.
+        // Render the game at 4× (kWebFboScale) into the FBO, then bilinearly
+        // downsample to the 2× canvas — equivalent to 4× SSAA.
         BeginTextureMode(gState->renderTarget);
         ClearBackground(BLACK);
-        BeginMode2D(Camera2D{{0.0f, 0.0f}, {0.0f, 0.0f}, 0.0f, static_cast<float>(kWebScale)});
+        BeginMode2D(Camera2D{{0.0f, 0.0f}, {0.0f, 0.0f}, 0.0f, static_cast<float>(kWebFboScale)});
         gState->game.draw();
         EndMode2D();
         EndTextureMode();
@@ -52,6 +67,14 @@ void webFrame()
         BeginDrawing();
         ClearBackground(BLACK);
         // Raylib render textures are bottom-up; negate height to flip the V axis.
+        if (gState->crtEnabled) {
+            const Vector2 res = {static_cast<float>(kScreenWidth * kWebScale),
+                                 static_cast<float>(kScreenHeight * kWebScale)};
+            const float t = static_cast<float>(GetTime());
+            SetShaderValue(gState->crtShader, gState->crtResolutionLoc, &res, SHADER_UNIFORM_VEC2);
+            SetShaderValue(gState->crtShader, gState->crtTimeLoc, &t, SHADER_UNIFORM_FLOAT);
+            BeginShaderMode(gState->crtShader);
+        }
         DrawTexturePro(
             gState->renderTarget.texture,
             Rectangle{0.0f, 0.0f,
@@ -63,6 +86,9 @@ void webFrame()
             Vector2{0.0f, 0.0f},
             0.0f,
             WHITE);
+        if (gState->crtEnabled) {
+            EndShaderMode();
+        }
         EndDrawing();
     } else {
         // Fallback: draw directly without a render target.
@@ -105,12 +131,28 @@ int main()
     // most recent physics snapshots, giving smooth motion at any display rate.
     gState->game.setInterpolationEnabled(true);
 
+    // FBO at 4× game resolution; bilinear filter is used when downsampling to
+    // the 2× canvas, giving smooth anti-aliased edges on rotated sprites.
     gState->renderTarget =
-        LoadRenderTexture(kScreenWidth * kWebScale, kScreenHeight * kWebScale);
+        LoadRenderTexture(kScreenWidth * kWebFboScale, kScreenHeight * kWebFboScale);
     if (IsRenderTextureValid(gState->renderTarget)) {
-        // Point filter keeps the pixel art sharp; bilinear would be blurry.
-        SetTextureFilter(gState->renderTarget.texture, TEXTURE_FILTER_POINT);
+        SetTextureFilter(gState->renderTarget.texture, TEXTURE_FILTER_BILINEAR);
         SetTextureWrap(gState->renderTarget.texture, TEXTURE_WRAP_CLAMP);
+    }
+
+    // CRT post-process shader (GLSL ES 300 variant for WebGL2).
+    // The shader file is preloaded into the virtual FS at assets/shaders/crt_es.fs.
+    {
+        Shader sh = LoadShader(nullptr, "assets/shaders/crt_es.fs");
+        if (IsShaderValid(sh)) {
+            gState->crtShader        = sh;
+            gState->crtResolutionLoc = GetShaderLocation(sh, "uResolution");
+            gState->crtTimeLoc       = GetShaderLocation(sh, "uTime");
+            gState->crtLoaded        = true;
+            gState->crtEnabled       = true;
+            // Inform the game's pause menu about the initial CRT state.
+            gState->game.setCrtEnabled(true);
+        }
     }
 
     // fps=0 → use requestAnimationFrame.  simulate_infinite_loop=1 → never
