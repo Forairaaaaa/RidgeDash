@@ -39,9 +39,17 @@ int hudTextWidth(const char* text, int fontSize)
 #endif
 }
 
-void drawTextRightAligned(const char* text, int rightX, int y, int fontSize, Color color)
+void drawTextRightAligned(const char* text, int rightX, int y, int fontSize, Color color, float rotation = 0.0f)
 {
-    DrawText(text, rightX - hudTextWidth(text, fontSize), y, fontSize, color);
+    if (rotation == 0.0f) {
+        DrawText(text, rightX - hudTextWidth(text, fontSize), y, fontSize, color);
+        return;
+    }
+    const Font font = GetFontDefault();
+    const Vector2 size = MeasureTextEx(font, text, fontSize, 1.0f);
+    const Vector2 center = {static_cast<float>(rightX) - size.x * 0.5f, static_cast<float>(y) + size.y * 0.5f};
+    const Vector2 origin = {size.x * 0.5f, size.y * 0.5f};
+    DrawTextPro(font, text, center, origin, rotation, fontSize, 1.0f, color);
 }
 
 void drawTextCentered(const char* text, int centerX, int y, int fontSize, Color color)
@@ -168,6 +176,8 @@ void GameUi::resetRun()
 {
     _scorePopupTimer = 0.0f;
     _fuelCelebrationTimer = 0.0f;
+    _distanceCelebrationTimer = 0.0f;
+    _distanceCelebrationCooldown = 0.0f;
     _scorePopupAmount = 0;
     _scorePopupLabel.clear();
     if (_showStartTips) {
@@ -205,6 +215,8 @@ void GameUi::updateAnimations(float dt, bool gameOver, float gameOverTimer)
     }
 
     _fuelCelebrationTimer = std::max(0.0f, _fuelCelebrationTimer - dt);
+    _distanceCelebrationTimer = std::max(0.0f, _distanceCelebrationTimer - dt);
+    _distanceCelebrationCooldown = std::max(0.0f, _distanceCelebrationCooldown - dt);
 }
 
 void GameUi::updateScorePopup(float dt)
@@ -225,11 +237,21 @@ void GameUi::showScorePopup(int amount, const char* label)
     _scorePopupAmount += amount;
     _scorePopupLabel = nextLabel;
     _scorePopupTimer = kScorePopupDuration;
+    triggerDistanceCelebration(true);
 }
 
 void GameUi::triggerFuelCelebration()
 {
     _fuelCelebrationTimer = 0.24f;
+}
+
+void GameUi::triggerDistanceCelebration(bool force)
+{
+    if (!force && _distanceCelebrationCooldown > 0.0f) {
+        return;
+    }
+    _distanceCelebrationTimer = 0.24f;
+    _distanceCelebrationCooldown = 0.42f;
 }
 
 bool GameUi::startTipsVisible() const
@@ -397,7 +419,20 @@ void GameUi::drawHud(const HudView& view) const
                              10,
                              fadeColor(Color{255, 226, 91, 255}, fade));
     }
-    drawTextRightAligned(distanceText, kScreenWidth - 8, kScreenHeight - 13, 10, RAYWHITE);
+    // Distance celebration: same scale + rotation pop as the fuel icon.
+    float distScale = 1.0f;
+    float distAngle = 0.0f;
+    if (_distanceCelebrationTimer > 0.0f) {
+        constexpr float kCelebDuration = 0.24f;
+        const float t = 1.0f - (_distanceCelebrationTimer / kCelebDuration);
+        const float decay = 1.0f - t;
+        distScale = 1.0f + 0.32f * std::sin(t * 3.14159f) * decay;
+        distAngle = 8.0f * std::sin(t * 16.0f) * decay;
+    }
+    const int distX = kScreenWidth - 8;
+    const int distY = kScreenHeight - 13;
+    const int fontSize = static_cast<int>(10.0f * distScale);
+    drawTextRightAligned(distanceText, distX, distY, fontSize, RAYWHITE, distAngle);
 }
 
 void GameUi::drawStartTips() const

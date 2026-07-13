@@ -47,6 +47,7 @@ public:
     void updateScorePopup(float dt);
     void showScorePopup(int amount, const char* label);
     void triggerFuelCelebration();
+    void triggerDistanceCelebration(bool force = false);
 
     bool startTipsVisible() const;
     void startTipsExit();
@@ -85,6 +86,8 @@ private:
     float _pauseMaskAlphaValue = 0.0f;
     float _scorePopupTimer = 0.0f;
     float _fuelCelebrationTimer = 0.0f;
+    float _distanceCelebrationTimer = 0.0f;
+    float _distanceCelebrationCooldown = 0.0f;
     float _pauseTimer = 0.0f;
     int _scorePopupAmount = 0;
     int _pauseSelection = 0;
