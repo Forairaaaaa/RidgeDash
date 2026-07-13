@@ -395,6 +395,14 @@ void TerrainSystem::draw(Vector2 camera) const
                            : desert ? Color{91, 62, 44, 255}
                            : snow   ? Color{45, 63, 78, 255}
                                     : Color{56, 43, 38, 255};
+        const Color soilLight = stone    ? Color{68, 69, 76, 255}
+                                : desert ? Color{115, 80, 55, 255}
+                                : snow   ? Color{64, 84, 102, 255}
+                                         : Color{75, 59, 48, 255};
+        const Color soilDark  = stone    ? Color{32, 33, 36, 255}
+                                : desert ? Color{68, 44, 30, 255}
+                                : snow   ? Color{30, 44, 56, 255}
+                                         : Color{38, 30, 26, 255};
         const Color subTop = stone    ? Color{76, 80, 87, 255}
                              : desert ? Color{166, 115, 58, 255}
                              : snow   ? Color{125, 165, 184, 255}
@@ -414,24 +422,71 @@ void TerrainSystem::draw(Vector2 camera) const
                    stone ? 4.0f : (desert ? 3.5f : (snow ? 4.0f : 3.0f)),
                    top);
 
-        // // Fill from soil level down to screen bottom with two CCW triangles per segment.
-        // // Decompose the quad [soilA, soilB, bottomRight, bottomLeft] along the diagonal
-        // // soilA→bottomRight, producing two triangles that follow the terrain slope exactly.
-        // {
-        //     const float screenH = static_cast<float>(kScreenHeight);
-        //     const Vector2 soilA = {a.x, a.y + 9.0f};
-        //     const Vector2 soilB = {b.x, b.y + 9.0f};
-        //     const Vector2 botL = {a.x, screenH};
-        //     const Vector2 botR = {b.x, screenH};
-        //     // CCW winding in screen coords (y-down): soilA → botR → soilB
-        //     DrawTriangle(soilA, botR, soilB, soil);
-        //     // CCW winding: soilA → botL → botR
-        //     DrawTriangle(soilA, botL, botR, soil);
-        // }
+        // Base fill from surface level down to screen bottom.
+        // A single solid pass guarantees zero gaps, even on steep slopes.
+        {
+            const float screenH = static_cast<float>(kScreenHeight);
+            const Vector2 sa = {a.x, a.y + 9.0f};
+            const Vector2 sb = {b.x, b.y + 9.0f};
+            const Vector2 bl = {a.x, screenH};
+            const Vector2 br = {b.x, screenH};
+            DrawTriangle(sa, br, sb, soilDark);
+            DrawTriangle(sa, bl, br, soilDark);
+        }
 
-        const int markerIndex = static_cast<int>(std::floor((_points[i - 1].x - kTerrainStartX) / kTerrainStep + 0.5f));
-        if ((markerIndex % 5) == 0) {
-            DrawRectangle(static_cast<int>(std::round(a.x)), static_cast<int>(std::round(a.y + 8.0f)), 3, 3, marker);
+        // Two lighter layers overlaid — any micro-gap just shows the
+        // similar-coloured base fill, reading as natural noise.
+        {
+            const float screenH = static_cast<float>(kScreenHeight);
+            const float ax = _points[i - 1].x;
+            const float bx = _points[i].x;
+
+            const float n0a = std::sin(ax * 0.7f) * 2.0f + std::cos(ax * 1.4f) * 1.5f;
+            const float n0b = std::sin(bx * 0.7f) * 2.0f + std::cos(bx * 1.4f) * 1.5f;
+            const float n1a = std::sin(ax * 0.5f + 1.8f) * 2.5f + std::cos(ax * 1.1f) * 1.0f;
+            const float n1b = std::sin(bx * 0.5f + 1.8f) * 2.5f + std::cos(bx * 1.1f) * 1.0f;
+
+            const float offA[2] = {16.0f + n0a, 34.0f + n1a};
+            const float offB[2] = {16.0f + n0b, 34.0f + n1b};
+            const Color colors[2] = {soilLight, soil};
+            for (int layer = 0; layer < 2; ++layer) {
+                const Vector2 ta = {a.x, a.y + offA[layer]};
+                const Vector2 tb = {b.x, b.y + offB[layer]};
+                const Vector2 bl = {a.x, screenH};
+                const Vector2 br = {b.x, screenH};
+                DrawTriangle(ta, br, tb, colors[layer]);
+                DrawTriangle(ta, bl, br, colors[layer]);
+            }
+        }
+
+        // Scattered soil markers — small rocks/pebbles at varying depths.
+        // Pseudo-random placement based on world position so markers stay
+        // fixed as the camera scrolls, without a per-frame RNG call.
+        {
+            const float wx = _points[i - 1].x;
+            auto hash = [](float seed) -> float {
+                float v = std::sin(seed * 127.1f) * 43758.5453f;
+                return v - std::floor(v);
+            };
+            const float r0 = hash(wx);
+            const float r1 = hash(wx + 5.0f);
+            const float r2 = hash(wx + 9.0f);
+
+            // Larger pebbles: ~30% chance per point, scattered through the soil
+            if (r0 < 0.30f) {
+                const float depth = 12.0f + r1 * 48.0f;
+                const int size = r2 < 0.25f ? 2 : (r2 < 0.70f ? 3 : 4);
+                const Color c = depth < 28.0f ? marker : soilDark;
+                DrawRectangle(static_cast<int>(std::round(a.x)),
+                              static_cast<int>(std::round(a.y + depth)), size, size, c);
+            }
+
+            // Smaller speckles at higher density for texture
+            if (r1 < 0.28f) {
+                const float depth = 10.0f + r2 * 50.0f;
+                DrawRectangle(static_cast<int>(std::round(a.x)),
+                              static_cast<int>(std::round(a.y + depth)), 2, 2, marker);
+            }
         }
     }
 }
