@@ -621,6 +621,51 @@ void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color)
     }
 }
 
+void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color)
+{
+    // Sort vertices by y (ascending)
+    if (v1.y > v2.y) std::swap(v1, v2);
+    if (v1.y > v3.y) std::swap(v1, v3);
+    if (v2.y > v3.y) std::swap(v2, v3);
+
+    const int y0 = static_cast<int>(std::round(v1.y));
+    const int y1 = static_cast<int>(std::round(v2.y));
+    const int y2 = static_cast<int>(std::round(v3.y));
+
+    if (y2 <= y0) {
+        return; // Degenerate triangle
+    }
+
+    const float dx12 = (v2.x - v1.x) / std::max(0.001f, v2.y - v1.y);
+    const float dx13 = (v3.x - v1.x) / std::max(0.001f, v3.y - v1.y);
+    const float dx23 = (v3.x - v2.x) / std::max(0.001f, v3.y - v2.y);
+
+    // Top half (v1 to v2)
+    for (int y = y0; y < y1; ++y) {
+        const float t = static_cast<float>(y) - v1.y;
+        const int xL = static_cast<int>(std::round(v1.x + t * dx12));
+        const int xR = static_cast<int>(std::round(v1.x + t * dx13));
+        if (xL <= xR) {
+            drawLine(xL, y, xR, y, color);
+        } else {
+            drawLine(xR, y, xL, y, color);
+        }
+    }
+
+    // Bottom half (v2 to v3)
+    for (int y = y1; y <= y2; ++y) {
+        const float t2 = static_cast<float>(y) - v2.y;
+        const float t1 = static_cast<float>(y) - v1.y;
+        const int xL = static_cast<int>(std::round(v2.x + t2 * dx23));
+        const int xR = static_cast<int>(std::round(v1.x + t1 * dx13));
+        if (xL <= xR) {
+            drawLine(xL, y, xR, y, color);
+        } else {
+            drawLine(xR, y, xL, y, color);
+        }
+    }
+}
+
 void DrawText(const char* text, int posX, int posY, int fontSize, Color color)
 {
     const int scale = std::max(1, fontSize / 6);

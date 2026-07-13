@@ -104,6 +104,7 @@ void DrawRectangle(int posX, int posY, int width, int height, Color color);
 void DrawRectangleLines(int posX, int posY, int width, int height, Color color);
 void DrawRectanglePro(Rectangle rec, Vector2 origin, float rotation, Color color);
 void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color);
+void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
 void DrawText(const char* text, int posX, int posY, int fontSize, Color color);
 
 Texture2D LoadTexture(const char* fileName);

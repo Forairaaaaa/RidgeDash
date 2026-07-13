@@ -414,6 +414,21 @@ void TerrainSystem::draw(Vector2 camera) const
                    stone ? 4.0f : (desert ? 3.5f : (snow ? 4.0f : 3.0f)),
                    top);
 
+        // // Fill from soil level down to screen bottom with two CCW triangles per segment.
+        // // Decompose the quad [soilA, soilB, bottomRight, bottomLeft] along the diagonal
+        // // soilA→bottomRight, producing two triangles that follow the terrain slope exactly.
+        // {
+        //     const float screenH = static_cast<float>(kScreenHeight);
+        //     const Vector2 soilA = {a.x, a.y + 9.0f};
+        //     const Vector2 soilB = {b.x, b.y + 9.0f};
+        //     const Vector2 botL = {a.x, screenH};
+        //     const Vector2 botR = {b.x, screenH};
+        //     // CCW winding in screen coords (y-down): soilA → botR → soilB
+        //     DrawTriangle(soilA, botR, soilB, soil);
+        //     // CCW winding: soilA → botL → botR
+        //     DrawTriangle(soilA, botL, botR, soil);
+        // }
+
         const int markerIndex = static_cast<int>(std::floor((_points[i - 1].x - kTerrainStartX) / kTerrainStep + 0.5f));
         if ((markerIndex % 5) == 0) {
             DrawRectangle(static_cast<int>(std::round(a.x)), static_cast<int>(std::round(a.y + 8.0f)), 3, 3, marker);
