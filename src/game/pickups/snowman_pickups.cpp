@@ -37,6 +37,7 @@ void SnowmanPickups::clear()
     _items.clear();
     _nextX = 0.0f;
     _boostTimer = 0.0f;
+    _activeBoost = 1.0f;
 }
 
 void SnowmanPickups::reset(RidgeDashGame& game)
@@ -61,7 +62,8 @@ void SnowmanPickups::stream(RidgeDashGame& game, float targetX)
         }
         if (game._pickups.fuel().activeNear(_nextX, 5.2f) || game._pickups.coin().activeNear(_nextX, 4.4f) ||
             game._pickups.flea().activeInRange(_nextX - 5.0f, _nextX + 5.0f) ||
-            game._pickups.rocket().activeNear(_nextX, 6.0f) || game._pickups.cactus().activeNear(_nextX, 5.6f)) {
+            game._pickups.rocket().activeNear(_nextX, 6.0f) || game._pickups.cactus().activeNear(_nextX, 5.6f) ||
+            game._pickups.helmet().activeNear(_nextX, 6.0f)) {
             _nextX += 6.4f;
             continue;
         }
@@ -77,9 +79,12 @@ void SnowmanPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
         return;
     }
 
+    std::uniform_real_distribution<float> boostDist(0.85f, 1.30f);
+
     _items.push_back(Item{});
     Item& snowman = _items.back();
     snowman.pos = {terrain.x, terrain.y - 0.78f};
+    snowman.boost = boostDist(game._rng);
 
     b2BodyDef bodyDef = b2DefaultBodyDef();
     bodyDef.type = b2_staticBody;
@@ -116,9 +121,11 @@ void SnowmanPickups::applyBoost(RidgeDashGame& game)
 
     const b2Vec2 velocity = game._vehicle.chassisVelocity();
     const float throttle = clampf(_boostTimer / 1.05f, 0.0f, 1.0f);
-    const float forceX = 18.0f + std::max(0.0f, velocity.x) * 0.22f + throttle * 8.0f;
-    game._vehicle.applyMainBodyForcePerMass({forceX, -1.4f}, 1.0f, 0.55f, 0.55f);
-    game._vehicle.applyChassisTorque(-0.8f * throttle);
+    // Randomised boost (0.85–1.30): ~1/2 average force of the old fixed 18+8×throttle,
+    // max below 3/4 of the old peak (19.5 vs 26).
+    const float forceX = _activeBoost * (8.0f + throttle * 7.0f) + std::max(0.0f, velocity.x) * 0.12f;
+    game._vehicle.applyMainBodyForcePerMass({forceX, -0.8f}, 1.0f, 0.55f, 0.55f);
+    game._vehicle.applyChassisTorque(-0.4f * throttle * _activeBoost);
 }
 
 bool SnowmanPickups::collect(RidgeDashGame& game, Item& snowman)
@@ -128,7 +135,8 @@ bool SnowmanPickups::collect(RidgeDashGame& game, Item& snowman)
     }
 
     const b2Vec2 velocity = game._vehicle.chassisVelocity();
-    game._vehicle.applyChassisDeltaVelocity({3.8f + std::max(0.0f, velocity.x) * 0.08f, -0.42f});
+    _activeBoost = snowman.boost;
+    game._vehicle.applyChassisDeltaVelocity({3.0f + std::max(0.0f, velocity.x) * 0.06f, -0.42f});
     _boostTimer = 1.05f;
 
     snowman.active = false;

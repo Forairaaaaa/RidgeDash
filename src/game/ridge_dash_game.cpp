@@ -54,6 +54,9 @@ void RidgeDashGame::loadSprites()
     _sprites.rocket = loadSpriteTexture("rocket.png");
     _sprites.cactus = loadSpriteTexture("cactus.png");
     _sprites.snowman = loadSpriteTexture("snowman.png");
+    _sprites.giantFlea = loadSpriteTexture("gaint_flea.png");
+    _sprites.helmet = loadSpriteTexture("helmet.png");
+    _sprites.driverHelmeted = loadSpriteTexture("driver_helmeted.png");
     _sprites.squidA = loadSpriteTexture("squid_a.png");
     _sprites.squidB = loadSpriteTexture("squid_b.png");
     _sprites.squidC = loadSpriteTexture("squid_c.png");
@@ -78,6 +81,9 @@ void RidgeDashGame::unloadSprites()
     unloadSpriteTexture(_sprites.rocket);
     unloadSpriteTexture(_sprites.cactus);
     unloadSpriteTexture(_sprites.snowman);
+    unloadSpriteTexture(_sprites.giantFlea);
+    unloadSpriteTexture(_sprites.helmet);
+    unloadSpriteTexture(_sprites.driverHelmeted);
     unloadSpriteTexture(_sprites.squidA);
     unloadSpriteTexture(_sprites.squidB);
     unloadSpriteTexture(_sprites.squidC);
@@ -100,6 +106,9 @@ void RidgeDashGame::reset()
     _audio.startBgm();
     _bgmIntense = false;
     _bgmCalmTimer = 0.0f;
+    _helmetActive = false;
+    _helmetRescuedThisFrame = false;
+    _invincibleTimer = 0.0f;
     _camera = {0.0f, 0.0f};
     _startX = 4.0f;
     createWorld();
@@ -206,11 +215,13 @@ void RidgeDashGame::update(float dt)
     }
 
     _runController.updateFrameTimers(dt);
+    _invincibleTimer = std::max(0.0f, _invincibleTimer - dt);
     updateWorldStreaming();
     updateGroundState();
     processInput(dt);
     _pickups.update(*this, dt);
     stepPhysics(dt);
+    _helmetRescuedThisFrame = false;
     handleSensorEvents();
     updatePickupOverlaps();
     updateGroundState();

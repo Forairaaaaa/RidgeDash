@@ -20,6 +20,8 @@
 namespace ridge_dash {
 namespace {
 
+constexpr float kPi = 3.14159265358979323846f;
+
 bool nearPoint(Vector2 a, Vector2 b, float distance)
 {
     const float dx = a.x - b.x;
@@ -63,9 +65,13 @@ void FuelPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
         return;
     }
 
+    std::uniform_real_distribution<float> phaseDist(0.0f, kPi * 2.0f);
+
     _items.push_back(Item{});
     Item& fuel = _items.back();
-    fuel.pos = {terrain.x, terrain.y - 1.25f};
+    fuel.basePos = {terrain.x, terrain.y - 1.25f};
+    fuel.pos = fuel.basePos;
+    fuel.idlePhase = phaseDist(game._rng);
 
     b2BodyDef bodyDef = b2DefaultBodyDef();
     bodyDef.type = b2_staticBody;
@@ -83,7 +89,7 @@ void FuelPickups::trim(float minX)
 {
     auto it = _items.begin();
     while (it != _items.end()) {
-        if (it->active && it->pos.x >= minX) {
+        if (it->active && it->basePos.x >= minX) {
             ++it;
             continue;
         }
@@ -91,6 +97,20 @@ void FuelPickups::trim(float minX)
             b2DestroyBody(it->bodyId);
         }
         it = _items.erase(it);
+    }
+}
+
+void FuelPickups::update(float dt)
+{
+    for (Item& fuel : _items) {
+        if (!fuel.active) {
+            continue;
+        }
+        fuel.idleTime += dt;
+        fuel.pos = {fuel.basePos.x, fuel.basePos.y + std::sin(fuel.idleTime * 3.4f + fuel.idlePhase) * 0.14f};
+        if (b2Body_IsValid(fuel.bodyId)) {
+            b2Body_SetTransform(fuel.bodyId, {fuel.pos.x, fuel.pos.y}, b2MakeRot(0.0f));
+        }
     }
 }
 

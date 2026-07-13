@@ -61,6 +61,8 @@ private:
     friend class RocketPickups;
     friend class CactusPickups;
     friend class SnowmanPickups;
+    friend class GiantFleaPickups;
+    friend class HelmetPickups;
     friend class SquidPickups;
 
     struct SpriteAssets {
@@ -79,6 +81,9 @@ private:
         Texture2D rocket{};
         Texture2D cactus{};
         Texture2D snowman{};
+        Texture2D giantFlea{};
+        Texture2D helmet{};
+        Texture2D driverHelmeted{};
         Texture2D squidA{};
         Texture2D squidB{};
         Texture2D squidC{};
@@ -116,6 +121,7 @@ private:
     void drawVehicle() const;
     bool carValid() const;
     float carDistance() const;
+    bool helmetActive() const;
 
     b2WorldId _worldId = b2_nullWorldId;
     Vehicle _vehicle;
@@ -139,6 +145,9 @@ private:
     uint32_t _runSeed = 0;
     bool _bgmIntense = false;   // current calm/intense BGM state (hysteresis)
     float _bgmCalmTimer = 0.0f; // dwell time spent slow before switching back to calm
+    bool _helmetActive = false; // helmet revive protection active
+    bool _helmetRescuedThisFrame = false; // prevent multi-segment head hits
+    float _invincibleTimer = 0.0f; // post-rescue invincibility (seconds)
     bool _quitRequested = false;
 };
 

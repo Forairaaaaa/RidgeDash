@@ -59,12 +59,14 @@ void PickupEffects::reset()
 
 void PickupEffects::spawn(Vector2 pos, Kind kind, uint32_t runSeed)
 {
-    const float life = kind == Kind::Fuel      ? 1.04f
-                       : kind == Kind::Flea    ? 0.56f
-                       : kind == Kind::Rocket  ? 0.62f
-                       : kind == Kind::Cactus  ? 0.58f
-                       : kind == Kind::Snowman ? 0.72f
-                                               : 0.96f;
+    const float life = kind == Kind::Fuel       ? 1.04f
+                       : kind == Kind::Flea     ? 0.56f
+                       : kind == Kind::Rocket   ? 0.62f
+                       : kind == Kind::Cactus   ? 0.58f
+                       : kind == Kind::Snowman  ? 0.72f
+                       : kind == Kind::GiantFlea ? 0.64f
+                       : kind == Kind::Helmet   ? 0.68f
+                                                : 0.96f;
     _puffs.push_back(Puff{pos, 0.0f, life, runSeed * 97u + _serial++ * 31u, kind});
 }
 
@@ -113,6 +115,17 @@ void PickupEffects::draw(const RidgeDashGame& game) const
         Color{168, 220, 238, 255},
         Color{255, 130, 78, 255},
     };
+    // GiantFlea uses the same white/grey dust as Flea but more particles.
+    const Color giantFleaColors[] = {
+        Color{255, 255, 255, 255},
+        Color{240, 242, 246, 255},
+        Color{215, 220, 230, 255},
+    };
+    const Color helmetColors[] = {
+        Color{255, 255, 180, 255},
+        Color{200, 200, 220, 255},
+        Color{255, 220, 80, 255},
+    };
 
     for (const Puff& puff : _puffs) {
         const float t = puff.age / puff.life;
@@ -121,14 +134,16 @@ void PickupEffects::draw(const RidgeDashGame& game) const
         const bool isRocket = puff.kind == Kind::Rocket;
         const bool isCactus = puff.kind == Kind::Cactus;
         const bool isSnowman = puff.kind == Kind::Snowman;
+        const bool isGiantFlea = puff.kind == Kind::GiantFlea;
+        const bool isHelmet = puff.kind == Kind::Helmet;
         const bool gathersToHud = isFuel || puff.kind == Kind::Coin;
         const float alpha = !gathersToHud ? (t < 0.58f ? 1.0f : std::max(0.0f, 1.0f - (t - 0.58f) / 0.42f))
                                           : (t < 0.84f ? 1.0f : std::max(0.0f, 1.0f - (t - 0.84f) / 0.16f));
-        const int count = isFuel ? 22 : (isFlea ? 24 : (isRocket ? 26 : (isCactus ? 20 : (isSnowman ? 28 : 18))));
+        const int count = isFuel ? 22 : (isFlea ? 24 : (isRocket ? 26 : (isCactus ? 20 : (isSnowman ? 28 : (isGiantFlea ? 32 : (isHelmet ? 22 : 18))))));
         const float speed =
-            isFuel ? 28.0f : (isFlea ? 31.0f : (isRocket ? 34.0f : (isCactus ? 26.0f : (isSnowman ? 30.0f : 22.0f))));
+            isFuel ? 28.0f : (isFlea ? 31.0f : (isRocket ? 34.0f : (isCactus ? 26.0f : (isSnowman ? 30.0f : (isGiantFlea ? 36.0f : (isHelmet ? 26.0f : 22.0f))))));
         const float gravity =
-            isFuel ? 27.0f : (isFlea ? 26.0f : (isRocket ? 24.0f : (isCactus ? 30.0f : (isSnowman ? 33.0f : 22.0f))));
+            isFuel ? 27.0f : (isFlea ? 26.0f : (isRocket ? 24.0f : (isCactus ? 30.0f : (isSnowman ? 33.0f : (isGiantFlea ? 28.0f : (isHelmet ? 25.0f : 22.0f))))));
         const Vector2 center = game.worldToScreen({puff.pos.x, puff.pos.y});
         const Vector2 hudTarget =
             isFuel ? Vector2{49.0f, static_cast<float>(kScreenHeight - 15)}
@@ -151,7 +166,7 @@ void PickupEffects::draw(const RidgeDashGame& game) const
             const float angle = static_cast<float>(i) * 6.2831853f / static_cast<float>(count) + angleJitter;
             const float vx = std::cos(angle) * speed * speedJitter;
             const float vy = std::sin(angle) * speed * 0.72f * speedJitter - 9.0f - riseJitter;
-            const float burstT = isFlea ? std::min(t, 0.32f + r3 * 0.24f) : std::min(t, 0.44f + r3 * 0.08f);
+            const float burstT = (isFlea || isGiantFlea) ? std::min(t, 0.32f + r3 * 0.24f) : std::min(t, 0.44f + r3 * 0.08f);
             Vector2 pos = {center.x + vx * burstT, center.y + vy * burstT + gravity * burstT * burstT};
             if (gathersToHud) {
                 const float gatherStart = 0.36f + r0 * 0.20f;
@@ -170,12 +185,14 @@ void PickupEffects::draw(const RidgeDashGame& game) const
             }
 
             const int size = t < 0.20f ? 5 : (t < 0.52f ? 4 : (t < 0.84f ? 3 : 2));
-            const Color base = isFuel      ? fuelColors[i % 3]
-                               : isFlea    ? fleaColors[i % 3]
-                               : isRocket  ? rocketColors[i % 3]
-                               : isCactus  ? cactusColors[i % 3]
-                               : isSnowman ? snowmanColors[i % 3]
-                                           : coinColors[i % 3];
+            const Color base = isFuel       ? fuelColors[i % 3]
+                               : isFlea     ? fleaColors[i % 3]
+                               : isRocket   ? rocketColors[i % 3]
+                               : isCactus   ? cactusColors[i % 3]
+                               : isSnowman  ? snowmanColors[i % 3]
+                               : isGiantFlea ? giantFleaColors[i % 3]
+                               : isHelmet   ? helmetColors[i % 3]
+                                            : coinColors[i % 3];
             const Color color = fadeColor(base, alpha);
             const int x = static_cast<int>(std::round(pos.x)) - size / 2;
             const int y = static_cast<int>(std::round(pos.y)) - size / 2;

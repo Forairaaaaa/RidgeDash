@@ -34,6 +34,8 @@ constexpr float kFleaGenerateAhead = 330.0f;
 constexpr float kRocketGenerateAhead = 360.0f;
 constexpr float kCactusGenerateAhead = 330.0f;
 constexpr float kSnowmanGenerateAhead = 330.0f;
+constexpr float kGiantFleaGenerateAhead = 360.0f;
+constexpr float kHelmetGenerateAhead = 360.0f;
 constexpr float kGroundThickness = 0.55f;
 constexpr float kWheelRadius = 0.42f;
 constexpr float kFuelCanRadius = 0.42f;
@@ -42,12 +44,16 @@ constexpr float kFleaRadius = 0.44f;
 constexpr float kRocketRadius = 0.62f;
 constexpr float kCactusRadius = 0.72f;
 constexpr float kSnowmanRadius = 0.64f;
+constexpr float kGiantFleaRadius = 0.56f;
+constexpr float kHelmetRadius = 0.46f;
 constexpr float kFuelPickupDistance = 1.08f;
 constexpr float kCoinPickupDistance = 0.96f;
 constexpr float kFleaPickupDistance = 1.05f;
 constexpr float kRocketPickupDistance = 1.16f;
 constexpr float kCactusPickupDistance = 1.28f;
 constexpr float kSnowmanPickupDistance = 1.20f;
+constexpr float kGiantFleaPickupDistance = 1.14f;
+constexpr float kHelmetPickupDistance = 1.06f;
 constexpr float kCoinScore = 10.0f;
 
 // Coin cluster layout: coins are placed as shapes (lines/waves/arcs/polygons),

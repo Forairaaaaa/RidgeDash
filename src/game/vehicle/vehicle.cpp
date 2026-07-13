@@ -576,7 +576,13 @@ void Vehicle::draw(const DrawContext& context) const
 
     const DriverExpression expression = driverExpression(context.runSeed, context.gameOver, context.headHit);
     const Texture2D* driverTexture = &context.textures.driver;
-    switch (expression.face) {
+    // Helmet always overrides the driver face when active.
+    if (context.helmetActive) {
+        if (textureLoaded(context.textures.driverHelmeted)) {
+            driverTexture = &context.textures.driverHelmeted;
+        }
+    } else {
+        switch (expression.face) {
         case DriverFace::Cried:
             if (textureLoaded(context.textures.driverCried)) {
                 driverTexture = &context.textures.driverCried;
@@ -600,6 +606,7 @@ void Vehicle::draw(const DrawContext& context) const
         case DriverFace::Normal:
         default:
             break;
+        }
     }
 
     const bool hitFlash = expression.hitFlash;
@@ -962,6 +969,11 @@ float RidgeDashGame::carDistance() const
     return _vehicle.distanceFrom(_startX);
 }
 
+bool RidgeDashGame::helmetActive() const
+{
+    return _helmetActive;
+}
+
 void RidgeDashGame::drawDust() const
 {
     _vehicle.drawDust(_camera);
@@ -977,6 +989,7 @@ void RidgeDashGame::drawVehicle() const
     context.textures.driverCried = _sprites.driverCried;
     context.textures.driverScared = _sprites.driverScared;
     context.textures.driverShocked = _sprites.driverShocked;
+    context.textures.driverHelmeted = _sprites.driverHelmeted;
     context.textures.wheelDay = _sprites.wheelDay;
     context.textures.wheelNight = _sprites.wheelNight;
     context.camera = _camera;
@@ -984,6 +997,7 @@ void RidgeDashGame::drawVehicle() const
     context.runSeed = _runSeed;
     context.gameOver = _runController.gameOver();
     context.headHit = _runController.headHit();
+    context.helmetActive = _helmetActive;
     context.interpolate = _interpolate;
     context.alpha = _interpolate ? clampf(_physicsRemainder / kPhysicsStep, 0.0f, 1.0f) : 1.0f;
     _vehicle.draw(context);

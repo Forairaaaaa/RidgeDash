@@ -23,7 +23,7 @@ struct TerrainSample;
 
 class PickupEffects {
 public:
-    enum class Kind { Fuel, Coin, Flea, Rocket, Cactus, Snowman };
+    enum class Kind { Fuel, Coin, Flea, Rocket, Cactus, Snowman, GiantFlea, Helmet };
 
     void clear();
     void reset();
@@ -50,6 +50,7 @@ public:
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
     void trim(float minX);
+    void update(float dt);
     bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeInRange(float minX, float maxX) const;
@@ -60,7 +61,10 @@ private:
     struct Item {
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
+        Vector2 basePos{};
         Vector2 pos{};
+        float idleTime = 0.0f;
+        float idlePhase = 0.0f;
         bool active = true;
     };
 
@@ -239,6 +243,7 @@ private:
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
         Vector2 pos{};
+        float boost = 1.0f;
         bool active = true;
     };
 
@@ -249,6 +254,7 @@ private:
     std::vector<Item> _items;
     float _nextX = 0.0f;
     float _boostTimer = 0.0f;
+    float _activeBoost = 1.0f;
 };
 
 class SquidPickups {
@@ -290,6 +296,80 @@ private:
     uint32_t _serial = 0;
 };
 
+class GiantFleaPickups {
+public:
+    void clear();
+    void reset(RidgeDashGame& game);
+    void stream(RidgeDashGame& game, float targetX);
+    void trim(float minX);
+    void update(RidgeDashGame& game, float dt);
+    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
+    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
+    bool activeNear(float x, float distance) const;
+    bool attached() const;
+    void draw(const RidgeDashGame& game) const;
+
+private:
+    struct Item {
+        b2BodyId bodyId = b2_nullBodyId;
+        b2ShapeId shapeId = b2_nullShapeId;
+        Vector2 basePos{};
+        Vector2 pos{};
+        float boost = 1.0f;
+        float jumpOffset = 0.0f;
+        float jumpVelocity = 0.0f;
+        float cooldown = 0.0f;
+        float idleCooldown = 0.0f;
+        float tilt = 0.0f;
+        float tiltVelocity = 0.0f;
+        bool triggeredJump = false;
+        bool active = true;
+    };
+
+    void create(RidgeDashGame& game, const TerrainSample& terrain);
+    bool collect(RidgeDashGame& game, Item& item);
+    void applyBounce(RidgeDashGame& game);
+
+    std::vector<Item> _items;
+    float _nextX = 0.0f;
+
+    // Attached state (like rocket flight, but triggered by landings).
+    bool _attached = false;
+    int _bouncesRemaining = 0;
+    bool _wasGrounded = false;
+    float _activeBoost = 1.0f;
+};
+
+class HelmetPickups {
+public:
+    void clear();
+    void reset(RidgeDashGame& game);
+    void stream(RidgeDashGame& game, float targetX);
+    void trim(float minX);
+    void update(float dt);
+    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
+    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
+    bool activeNear(float x, float distance) const;
+    void draw(const RidgeDashGame& game) const;
+
+private:
+    struct Item {
+        b2BodyId bodyId = b2_nullBodyId;
+        b2ShapeId shapeId = b2_nullShapeId;
+        Vector2 basePos{};
+        Vector2 pos{};
+        float idleTime = 0.0f;
+        float idlePhase = 0.0f;
+        bool active = true;
+    };
+
+    void create(RidgeDashGame& game, const TerrainSample& terrain);
+    bool collect(RidgeDashGame& game, Item& item);
+
+    std::vector<Item> _items;
+    float _nextX = 0.0f;
+};
+
 class PickupSystem {
 public:
     void clear();
@@ -312,6 +392,8 @@ public:
     RocketPickups& rocket();
     CactusPickups& cactus();
     SnowmanPickups& snowman();
+    GiantFleaPickups& giantFlea();
+    HelmetPickups& helmet();
     SquidPickups& squid();
 
     const PickupEffects& effects() const;
@@ -321,6 +403,8 @@ public:
     const RocketPickups& rocket() const;
     const CactusPickups& cactus() const;
     const SnowmanPickups& snowman() const;
+    const GiantFleaPickups& giantFlea() const;
+    const HelmetPickups& helmet() const;
     const SquidPickups& squid() const;
 
 private:
@@ -331,6 +415,8 @@ private:
     RocketPickups _rocket;
     CactusPickups _cactus;
     SnowmanPickups _snowman;
+    GiantFleaPickups _giantFlea;
+    HelmetPickups _helmet;
     SquidPickups _squid;
 };
 

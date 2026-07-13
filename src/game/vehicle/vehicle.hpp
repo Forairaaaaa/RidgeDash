@@ -47,6 +47,7 @@ public:
         Texture2D driverCried{};
         Texture2D driverScared{};
         Texture2D driverShocked{};
+        Texture2D driverHelmeted{};
         Texture2D wheelDay{};
         Texture2D wheelNight{};
     };
@@ -58,6 +59,7 @@ public:
         uint32_t runSeed = 0;
         bool gameOver = false;
         bool headHit = false;
+        bool helmetActive = false;
         bool interpolate = false;
         float alpha = 1.0f;
     };
