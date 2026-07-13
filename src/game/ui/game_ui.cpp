@@ -167,6 +167,7 @@ void GameUi::configureAnimations()
 void GameUi::resetRun()
 {
     _scorePopupTimer = 0.0f;
+    _fuelCelebrationTimer = 0.0f;
     _scorePopupAmount = 0;
     _scorePopupLabel.clear();
     if (_showStartTips) {
@@ -202,6 +203,8 @@ void GameUi::updateAnimations(float dt, bool gameOver, float gameOverTimer)
     if (gameOver && gameOverTimer >= 2.0f && !_gameOverPanelShown) {
         startGameOverAnimation();
     }
+
+    _fuelCelebrationTimer = std::max(0.0f, _fuelCelebrationTimer - dt);
 }
 
 void GameUi::updateScorePopup(float dt)
@@ -222,6 +225,11 @@ void GameUi::showScorePopup(int amount, const char* label)
     _scorePopupAmount += amount;
     _scorePopupLabel = nextLabel;
     _scorePopupTimer = kScorePopupDuration;
+}
+
+void GameUi::triggerFuelCelebration()
+{
+    _fuelCelebrationTimer = 0.24f;
 }
 
 bool GameUi::startTipsVisible() const
@@ -330,14 +338,29 @@ void GameUi::drawHud(const HudView& view) const
     constexpr int kBarWidth = 32;
     constexpr int kBarHeight = 10;
 
+    // Fuel celebration: Balatro-style scale pop + rotation shake that decays.
+    float celebScale = 1.0f;
+    float celebAngle = 0.0f;
+    if (_fuelCelebrationTimer > 0.0f) {
+        constexpr float kCelebDuration = 0.24f;
+        const float t = 1.0f - (_fuelCelebrationTimer / kCelebDuration);
+        const float decay = 1.0f - t;
+        celebScale = 1.0f + 0.32f * std::sin(t * 3.14159f) * decay;
+        celebAngle = 11.0f * std::sin(t * 16.0f) * decay;
+    }
+
     if (textureLoaded(view.fuelCan)) {
+        const float iconCX = 16.5f;
+        const float iconCY = static_cast<float>(kIconY + 8.5f);
+        const float iconW = 15.0f * celebScale;
+        const float iconH = 19.0f * celebScale;
         drawSpriteCentered(view.fuelCan,
-                           Vector2{17.5f, static_cast<float>(kIconY + 9.5f)},
-                           15.0f,
-                           19.0f,
-                           0.0f,
+                           Vector2{iconCX + 2.0f, iconCY + 2.0f},
+                           iconW,
+                           iconH,
+                           celebAngle,
                            fadeColor(BLACK, 0.20f));
-        drawSpriteCentered(view.fuelCan, Vector2{15.5f, static_cast<float>(kIconY + 7.5f)}, 15.0f, 19.0f, 0.0f);
+        drawSpriteCentered(view.fuelCan, Vector2{iconCX, iconCY}, iconW, iconH, celebAngle);
     } else {
         DrawRectangle(kIconX + 2, kIconY + 5, 12, 14, fadeColor(BLACK, 0.20f));
         DrawRectangle(kIconX + 6, kIconY, 7, 5, fadeColor(BLACK, 0.20f));

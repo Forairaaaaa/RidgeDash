@@ -46,6 +46,7 @@ public:
     void updateAnimations(float dt, bool gameOver, float gameOverTimer);
     void updateScorePopup(float dt);
     void showScorePopup(int amount, const char* label);
+    void triggerFuelCelebration();
 
     bool startTipsVisible() const;
     void startTipsExit();
@@ -83,6 +84,7 @@ private:
     float _pausePanelYValue = 0.0f;
     float _pauseMaskAlphaValue = 0.0f;
     float _scorePopupTimer = 0.0f;
+    float _fuelCelebrationTimer = 0.0f;
     float _pauseTimer = 0.0f;
     int _scorePopupAmount = 0;
     int _pauseSelection = 0;
