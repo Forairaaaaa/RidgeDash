@@ -169,6 +169,7 @@ fi
 install -m 644 "${DESKTOP_TEMPLATE}" "${STAGE_DIR}/usr/share/APPLaunch/applications/ridgedash.desktop"
 install -m 644 "${ICON_FILE}" "${STAGE_DIR}/usr/share/APPLaunch/share/images/ridgedash.png"
 cp -R "${ROOT_DIR}/assets/sprites" "${STAGE_DIR}/usr/share/APPLaunch/share/ridgedash/sprites"
+cp -R "${ROOT_DIR}/assets/audio" "${STAGE_DIR}/usr/share/APPLaunch/share/ridgedash/audio"
 
 INSTALLED_SIZE="$(du -sk "${STAGE_DIR}/usr" | awk '{print $1}')"
 cat >"${STAGE_DIR}/DEBIAN/control" <<EOF

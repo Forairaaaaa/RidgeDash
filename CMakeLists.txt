@@ -41,9 +41,9 @@ set(SMOOTH_UI_TOOLKIT_BUILD_TEST OFF CACHE BOOL "" FORCE)
 if(NOT RIDGEDASH_RAYLIB_PLATFORM STREQUAL "FBDEV")
     set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
     set(BUILD_GAMES OFF CACHE BOOL "" FORCE)
-    # Audio (raudio/miniaudio) is enabled on Desktop and Web (WebAudio via
-    # Emscripten). DRM/embedded builds keep it off to avoid ALSA/PulseAudio deps.
-    if(RIDGEDASH_RAYLIB_PLATFORM STREQUAL "Desktop" OR RIDGEDASH_RAYLIB_PLATFORM STREQUAL "Web")
+    # Audio (raudio/miniaudio) is enabled on Desktop, Web, and DRM (e.g. Pi Zero
+    # with ALSA). FBDEV builds keep it off — no audio stack is assumed.
+    if(RIDGEDASH_RAYLIB_PLATFORM STREQUAL "Desktop" OR RIDGEDASH_RAYLIB_PLATFORM STREQUAL "Web" OR RIDGEDASH_RAYLIB_PLATFORM STREQUAL "DRM")
         set(SUPPORT_MODULE_RAUDIO ON CACHE BOOL "" FORCE)
     else()
         set(SUPPORT_MODULE_RAUDIO OFF CACHE BOOL "" FORCE)
@@ -111,6 +111,7 @@ elseif(RIDGEDASH_RAYLIB_PLATFORM STREQUAL "DRM")
     target_compile_definitions(${RIDGEDASH_BIN_NAME} PRIVATE
         RIDGEDASH_DRM_RENDER=1
         RIDGEDASH_USE_EVDEV_INPUT=1
+        RIDGEDASH_ENABLE_AUDIO=1
     )
 elseif(RIDGEDASH_RAYLIB_PLATFORM STREQUAL "Desktop")
     target_compile_definitions(${RIDGEDASH_BIN_NAME} PRIVATE
