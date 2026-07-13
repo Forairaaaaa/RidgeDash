@@ -157,6 +157,7 @@ bool FleaPickups::collect(RidgeDashGame& game, Item& flea)
     flea.triggeredJump = true;
     flea.tiltVelocity += fleaSide(flea.basePos, flea.boost) * (18.0f + flea.boost * 10.0f);
     game.playSfx(AudioSystem::Sfx::FleaJump);
+    game._pickups.effects().spawn({flea.pos.x, flea.pos.y + 0.14f}, PickupEffects::Kind::Flea, game._runSeed);
     return true;
 }
 

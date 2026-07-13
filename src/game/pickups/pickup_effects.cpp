@@ -94,9 +94,9 @@ void PickupEffects::draw(const RidgeDashGame& game) const
         Color{255, 194, 64, 255},
     };
     const Color fleaColors[] = {
-        Color{154, 255, 221, 255},
-        Color{220, 255, 244, 255},
-        Color{80, 214, 177, 255},
+        Color{255, 255, 255, 255},
+        Color{240, 242, 246, 255},
+        Color{215, 220, 230, 255},
     };
     const Color rocketColors[] = {
         Color{255, 233, 104, 255},
@@ -151,7 +151,7 @@ void PickupEffects::draw(const RidgeDashGame& game) const
             const float angle = static_cast<float>(i) * 6.2831853f / static_cast<float>(count) + angleJitter;
             const float vx = std::cos(angle) * speed * speedJitter;
             const float vy = std::sin(angle) * speed * 0.72f * speedJitter - 9.0f - riseJitter;
-            const float burstT = isFlea ? t : std::min(t, 0.44f + r3 * 0.08f);
+            const float burstT = isFlea ? std::min(t, 0.32f + r3 * 0.24f) : std::min(t, 0.44f + r3 * 0.08f);
             Vector2 pos = {center.x + vx * burstT, center.y + vy * burstT + gravity * burstT * burstT};
             if (gathersToHud) {
                 const float gatherStart = 0.36f + r0 * 0.20f;
