@@ -54,7 +54,7 @@ void RidgeDashGame::loadSprites()
     _sprites.rocket = loadSpriteTexture("rocket.png");
     _sprites.cactus = loadSpriteTexture("cactus.png");
     _sprites.snowman = loadSpriteTexture("snowman.png");
-    _sprites.giantFlea = loadSpriteTexture("gaint_flea.png");
+    _sprites.giantFlea = loadSpriteTexture("giant_flea.png");
     _sprites.helmet = loadSpriteTexture("helmet.png");
     _sprites.driverHelmeted = loadSpriteTexture("driver_helmeted.png");
     _sprites.squidA = loadSpriteTexture("squid_a.png");
