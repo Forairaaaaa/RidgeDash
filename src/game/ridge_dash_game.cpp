@@ -360,8 +360,10 @@ void RidgeDashGame::updateTricks(float dt)
     // Each flip is credited the instant it completes, mid-air: score, an updated
     // "Nx FLIP" popup, and the flip sound all fire immediately and keep counting.
     if (bonus.newFlip) {
-        _runStats.addFlipBonus(1, kFlipBonusScore);
-        showScorePopup(kFlipBonusScore, bonus.flipIndex > 1 ? TextFormat("%dx FLIP", bonus.flipIndex) : "FLIP");
+        const int score = bonus.frontFlip ? kFrontFlipBonusScore : kFlipBonusScore;
+        const char* dirLabel = bonus.frontFlip ? "FLIP" : "FLIP";
+        _runStats.addFlipBonus(bonus.frontFlip, score);
+        showScorePopup(score, bonus.flipIndex > 1 ? TextFormat("%dx %s", bonus.flipIndex, dirLabel) : dirLabel);
         playSfx(AudioSystem::Sfx::CarFlip);
     }
 }

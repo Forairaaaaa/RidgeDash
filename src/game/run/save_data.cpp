@@ -58,6 +58,10 @@ GameRecords loadGameRecords()
             records.coins = clampRecordValue(value);
         } else if (key == "flips") {
             records.flips = clampRecordValue(value);
+        } else if (key == "front_flips") {
+            records.frontFlips = clampRecordValue(value);
+        } else if (key == "back_flips") {
+            records.backFlips = clampRecordValue(value);
         }
     }
     return records;
@@ -76,6 +80,8 @@ void saveGameRecords(const GameRecords& records)
     file << "score " << clampRecordValue(records.score) << '\n';
     file << "coins " << clampRecordValue(records.coins) << '\n';
     file << "flips " << clampRecordValue(records.flips) << '\n';
+    file << "front_flips " << clampRecordValue(records.frontFlips) << '\n';
+    file << "back_flips " << clampRecordValue(records.backFlips) << '\n';
 }
 
 } // namespace ridge_dash

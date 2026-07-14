@@ -23,8 +23,9 @@ public:
     };
 
     struct Bonus {
-        bool newFlip = false; // a flip just completed this frame (score + popup + sfx)
-        int flipIndex = 0;    // cumulative flip number this air session (1,2,3,...) when newFlip
+        bool newFlip = false;  // a flip just completed this frame (score + popup + sfx)
+        int flipIndex = 0;     // cumulative flip number this air session (1,2,3,...) when newFlip
+        bool frontFlip = true; // true = front flip (nose-down rotation), false = back flip
     };
 
     void reset();

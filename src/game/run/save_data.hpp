@@ -16,6 +16,8 @@ struct GameRecords {
     int score = 0;
     int coins = 0;
     int flips = 0;
+    int frontFlips = 0;
+    int backFlips = 0;
 };
 
 GameRecords loadGameRecords();

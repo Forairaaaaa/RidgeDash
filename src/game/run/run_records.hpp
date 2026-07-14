@@ -30,7 +30,8 @@ public:
             return false;
         }
 
-        _records = GameRecords{stats.roundedScore(), stats.coins(), stats.flips()};
+        _records =
+            GameRecords{stats.roundedScore(), stats.coins(), stats.flips(), stats.frontFlips(), stats.backFlips()};
         stats.markNewRecord();
         saveGameRecords(_records);
         return true;

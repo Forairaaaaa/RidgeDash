@@ -25,6 +25,8 @@ public:
         _score = 0.0f;
         _coins = 0;
         _flips = 0;
+        _frontFlips = 0;
+        _backFlips = 0;
         _newRecord = false;
     }
 
@@ -41,9 +43,10 @@ public:
         updateScore();
     }
 
-    void addFlipBonus(int flips, int score)
+    void addFlipBonus(bool frontFlip, int score)
     {
-        _flips += flips;
+        ++_flips;
+        frontFlip ? ++_frontFlips : ++_backFlips;
         _trickScore += static_cast<float>(score);
         updateScore();
     }
@@ -73,6 +76,16 @@ public:
         return _flips;
     }
 
+    int frontFlips() const
+    {
+        return _frontFlips;
+    }
+
+    int backFlips() const
+    {
+        return _backFlips;
+    }
+
     bool newRecord() const
     {
         return _newRecord;
@@ -95,6 +108,8 @@ private:
     float _score = 0.0f;
     int _coins = 0;
     int _flips = 0;
+    int _frontFlips = 0;
+    int _backFlips = 0;
     bool _newRecord = false;
 };
 

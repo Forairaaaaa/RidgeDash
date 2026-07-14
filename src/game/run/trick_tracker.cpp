@@ -86,6 +86,7 @@ TrickTracker::Bonus TrickTracker::update(float dt, const Sample& sample)
             _announcedFlips = flips;
             bonus.newFlip = true;
             bonus.flipIndex = flips;
+            bonus.frontFlip = _flipAngle > 0.0f;
         }
         return bonus;
     }
@@ -97,6 +98,7 @@ TrickTracker::Bonus TrickTracker::update(float dt, const Sample& sample)
         if (flips > _announcedFlips) {
             bonus.newFlip = true;
             bonus.flipIndex = flips;
+            bonus.frontFlip = _flipAngle > 0.0f;
         }
     }
 

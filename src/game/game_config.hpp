@@ -58,20 +58,21 @@ constexpr float kCoinScore = 10.0f;
 
 // Coin cluster layout: coins are placed as shapes (lines/waves/arcs/polygons),
 // on the ground or floating in the air, with slope- and rocket-coupled odds.
-constexpr float kCoinSpacing = 0.92f;         // spacing between coins in a shape (~diameter)
-constexpr float kCoinClusterGapMin = 24.0f;   // min x gap between shape clusters
-constexpr float kCoinClusterGapMax = 48.0f;   // max x gap between shape clusters
-constexpr float kCoinGroundLift = 1.25f;      // ground clusters float this far above terrain
-constexpr float kCoinMinClearance = 0.85f;    // no coin ever sits closer than this to the ground
-constexpr float kCoinAirLiftMin = 3.4f;       // air clusters: min height above terrain
-constexpr float kCoinAirLiftMax = 7.0f;       // air clusters: max height above terrain
-constexpr float kCoinAirChance = 0.34f;       // base chance a cluster is placed in the air
-constexpr float kCoinSlopeStep = 1.4f;        // dx used to sample local terrain slope
-constexpr float kCoinSteepSlope = 0.55f;      // |slope| above this counts as a launch ramp
-constexpr float kCoinRocketRadius = 9.0f;     // couple to a rocket within this x distance
-constexpr float kCoinRocketAirBoost = 0.5f;   // added air chance near a rocket
+constexpr float kCoinSpacing = 0.92f;       // spacing between coins in a shape (~diameter)
+constexpr float kCoinClusterGapMin = 24.0f; // min x gap between shape clusters
+constexpr float kCoinClusterGapMax = 48.0f; // max x gap between shape clusters
+constexpr float kCoinGroundLift = 1.25f;    // ground clusters float this far above terrain
+constexpr float kCoinMinClearance = 0.85f;  // no coin ever sits closer than this to the ground
+constexpr float kCoinAirLiftMin = 3.4f;     // air clusters: min height above terrain
+constexpr float kCoinAirLiftMax = 7.0f;     // air clusters: max height above terrain
+constexpr float kCoinAirChance = 0.34f;     // base chance a cluster is placed in the air
+constexpr float kCoinSlopeStep = 1.4f;      // dx used to sample local terrain slope
+constexpr float kCoinSteepSlope = 0.55f;    // |slope| above this counts as a launch ramp
+constexpr float kCoinRocketRadius = 9.0f;   // couple to a rocket within this x distance
+constexpr float kCoinRocketAirBoost = 0.5f; // added air chance near a rocket
 
-constexpr int kFlipBonusScore = 100;
+constexpr int kFlipBonusScore = 100;      // back flip score
+constexpr int kFrontFlipBonusScore = 150; // front flip score (1.5x, harder to land)
 constexpr float kFlipBonusAngle = 4.36f;
 constexpr float kScorePopupDuration = 0.85f;
 constexpr float kMaxFuel = 100.0f;
@@ -85,13 +86,13 @@ constexpr b2Vec2 kDriverLocalPos = {-0.18f, -0.50f};
 constexpr float kBodyVisualYOffset = -3.0f;
 
 // Touchdown sound thresholds (downward speed at impact, m/s).
-constexpr float kLandingSoundMinSpeed = 2.0f;  // below this, a touchdown is silent
-constexpr float kHardLandingSpeed = 8.5f;      // above this, play the heavy landing sound
+constexpr float kLandingSoundMinSpeed = 2.0f; // below this, a touchdown is silent
+constexpr float kHardLandingSpeed = 8.5f;     // above this, play the heavy landing sound
 
 // BGM calm <-> intense switching (total speed, m/s), with hysteresis + dwell.
-constexpr float kBgmIntenseSpeed = 9.0f;  // above this -> switch to intense music
-constexpr float kBgmCalmSpeed = 5.0f;     // sustained below this -> switch back to calm
-constexpr float kBgmCalmDwell = 2.4f;     // seconds below calm speed before switching back
+constexpr float kBgmIntenseSpeed = 9.0f; // above this -> switch to intense music
+constexpr float kBgmCalmSpeed = 5.0f;    // sustained below this -> switch back to calm
+constexpr float kBgmCalmDwell = 2.4f;    // seconds below calm speed before switching back
 
 inline float clampf(float value, float lo, float hi)
 {
