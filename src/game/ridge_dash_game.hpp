@@ -49,6 +49,11 @@ public:
     void setCrtEnabled(bool enabled);
     bool crtEnabled() const;
     bool consumeCrtRequest(bool& enabled);
+    void setBgmOn(bool on);
+    void setSfxOn(bool on);
+    bool bgmOn() const;
+    bool sfxOn() const;
+    bool consumeSettingsChanged();
     void setInterpolationEnabled(bool enabled);
     bool renderInterpolation() const;
     float renderAlpha() const;

@@ -153,6 +153,31 @@ bool RidgeDashGame::consumeCrtRequest(bool& enabled)
     return _pauseMenu.consumeCrtRequest(enabled);
 }
 
+void RidgeDashGame::setBgmOn(bool on)
+{
+    _pauseMenu.setBgmOn(on);
+}
+
+void RidgeDashGame::setSfxOn(bool on)
+{
+    _pauseMenu.setSfxOn(on);
+}
+
+bool RidgeDashGame::bgmOn() const
+{
+    return _pauseMenu.bgmOn();
+}
+
+bool RidgeDashGame::sfxOn() const
+{
+    return _pauseMenu.sfxOn();
+}
+
+bool RidgeDashGame::consumeSettingsChanged()
+{
+    return _pauseMenu.consumeSettingsChanged();
+}
+
 void RidgeDashGame::setInterpolationEnabled(bool enabled)
 {
     _interpolate = enabled;
@@ -196,6 +221,10 @@ void RidgeDashGame::update(float dt)
 {
     dt = std::min(dt, kMaxFrameDt);
     _input.poll();
+
+    // Sync audio mute toggles from the pause menu (cheap, called every frame).
+    _audio.setBgmMuted(!_pauseMenu.bgmOn());
+    _audio.setSfxMuted(!_pauseMenu.sfxOn());
 
     // Keep the engine stream fed every frame (including while paused/game over) so
     // its buffer never starves; the state flags handle muting.

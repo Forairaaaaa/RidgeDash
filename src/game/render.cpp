@@ -28,8 +28,7 @@ void RidgeDashGame::draw() const
     // Background celestial/star motion is driven by distance; feed the interpolated
     // distance so the sun/moon advance smoothly instead of stepping at 60Hz.
     const float backgroundDistance =
-        carValid() ? _vehicle.renderDistanceFrom(_startX, renderInterpolation(), renderAlpha())
-                   : _runStats.distance();
+        carValid() ? _vehicle.renderDistanceFrom(_startX, renderInterpolation(), renderAlpha()) : _runStats.distance();
     _environment.drawBackground(_camera, backgroundDistance);
     _terrain.draw(_camera);
     _pickups.draw(*this);
@@ -42,7 +41,12 @@ void RidgeDashGame::draw() const
         _ui.drawStartTips();
     }
     if (_runController.paused()) {
-        _ui.drawPauseMenu(GameUi::PauseView{_runRecords.records(), _pauseMenu.scaleLabel(), _pauseMenu.crtEnabled()});
+        _ui.drawPauseMenu(GameUi::PauseView{_runRecords.records(),
+                                            _pauseMenu.scaleLabel(),
+                                            _pauseMenu.crtEnabled(),
+                                            _pauseMenu.bgmOn(),
+                                            _pauseMenu.sfxOn(),
+                                            static_cast<int>(_pauseMenu.menuLevel())});
     }
     if (_runController.gameOver() && _runController.gameOverTimer() >= 2.0f) {
         _ui.drawGameOver(GameUi::RunSummaryView{_runStats.score(),

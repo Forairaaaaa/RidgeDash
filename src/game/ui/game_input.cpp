@@ -49,7 +49,7 @@ void GameInput::poll()
 
     _commands.pause = IsKeyPressed(KEY_ESCAPE);
     _commands.reset = IsKeyPressed(KEY_R);
-    _commands.confirm = IsKeyPressed(KEY_ENTER);
+    _commands.confirm = pressedAny(KEY_ENTER, KEY_E);
     _commands.squid = false;
     if (IsKeyPressed(KEY_G)) {
         ++_squidPressCount;

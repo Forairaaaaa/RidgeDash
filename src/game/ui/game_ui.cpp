@@ -381,12 +381,8 @@ void GameUi::drawHud(const HudView& view) const
         const float iconCY = static_cast<float>(kIconY + 8.5f);
         const float iconW = 15.0f * celebScale;
         const float iconH = 19.0f * celebScale;
-        drawSpriteCentered(view.fuelCan,
-                           Vector2{iconCX + 2.0f, iconCY + 2.0f},
-                           iconW,
-                           iconH,
-                           celebAngle,
-                           fadeColor(BLACK, 0.20f));
+        drawSpriteCentered(
+            view.fuelCan, Vector2{iconCX + 2.0f, iconCY + 2.0f}, iconW, iconH, celebAngle, fadeColor(BLACK, 0.20f));
         drawSpriteCentered(view.fuelCan, Vector2{iconCX, iconCY}, iconW, iconH, celebAngle);
     } else {
         DrawRectangle(kIconX + 2, kIconY + 5, 12, 14, fadeColor(BLACK, 0.20f));
@@ -481,64 +477,62 @@ void GameUi::drawGameOver(const RunSummaryView& view) const
 
 void GameUi::drawPauseMenu(const PauseView& view) const
 {
-#if defined(RIDGEDASH_DESKTOP_RENDER)
-    constexpr int kPanelW = 226;
-    constexpr int kPanelH = 98;
-#elif defined(RIDGEDASH_WEB)
-    constexpr int kPanelW = 202;
-    constexpr int kPanelH = 80;
-#else
-    constexpr int kPanelW = 202;
-    constexpr int kPanelH = 66;
-#endif
+    // Panel dimensions adapt to the current menu level (main or submenu).
+    constexpr int kPanelW = 228;
+    const int kPanelH = (view.menuLevel == 0) ? 98 : 92;
     constexpr int kPanelX = (kScreenWidth - kPanelW) / 2;
     const float alpha = clamp01(_pauseMaskAlphaValue);
     const int y = static_cast<int>(std::round(_pausePanelYValue));
 
     DrawRectangle(0, 0, kScreenWidth, kScreenHeight, fadeColor(BLACK, 0.44f * alpha));
     drawPixelPanel(kPanelX, y, kPanelW, kPanelH, alpha);
-    DrawText("PAUSED", kPanelX + 13, y + 11, 14, fadeColor(Color{223, 186, 255, 255}, alpha));
 
-    drawRunSummarySticker(kPanelX + kPanelW - 12 + 5,
-                          y + 10 - 10,
-                          TextFormat("BEST: %dm", view.records.score),
-                          view.records.coins,
-                          view.records.flips,
-                          false,
-                          _pauseTimer,
-                          alpha);
+    // Title changes by menu level.
+    const char* title = "PAUSED";
+    if (view.menuLevel == 1) {
+        title = "VIDEO";
+    } else if (view.menuLevel == 2) {
+        title = "AUDIO";
+    }
+    DrawText(title, kPanelX + 13, y + 11, 14, fadeColor(Color{223, 186, 255, 255}, alpha));
 
-#if defined(RIDGEDASH_DESKTOP_RENDER)
+    // Best-record sticker in top-right corner (main menu only).
+    if (view.menuLevel == 0) {
+        drawRunSummarySticker(kPanelX + kPanelW - 12 + 5,
+                              y + 10 - 10,
+                              TextFormat("BEST: %dm", view.records.score),
+                              view.records.coins,
+                              view.records.flips,
+                              false,
+                              _pauseTimer,
+                              alpha);
+    }
+
+#if defined(RIDGEDASH_DESKTOP_RENDER) || defined(RIDGEDASH_WEB)
     const Color selected = fadeColor(Color{131, 255, 160, 255}, alpha);
     const Color normal = fadeColor(Color{220, 230, 238, 255}, 0.86f * alpha);
-    DrawText(_pauseSelection == 0 ? ">" : " ", kPanelX + 16, y + 47, 10, _pauseSelection == 0 ? selected : normal);
-    DrawText("SCALE", kPanelX + 28, y + 47, 10, _pauseSelection == 0 ? selected : normal);
-    drawTextRightAligned(TextFormat("< %s >", view.scaleLabel),
-                         kPanelX + kPanelW - 18,
-                         y + 47,
-                         10,
-                         _pauseSelection == 0 ? selected : normal);
 
-    DrawText(_pauseSelection == 1 ? ">" : " ", kPanelX + 16, y + 62, 10, _pauseSelection == 1 ? selected : normal);
-    DrawText("CRT", kPanelX + 28, y + 62, 10, _pauseSelection == 1 ? selected : normal);
-    drawTextRightAligned(TextFormat("< %s >", view.crtOn ? "ON" : "OFF"),
-                         kPanelX + kPanelW - 18,
-                         y + 62,
-                         10,
-                         _pauseSelection == 1 ? selected : normal);
+    // Helper: draw one row of the menu.
+    auto drawRow = [&](int index, int rowY, const char* label, const char* rightLabel = nullptr) {
+        DrawText(
+            _pauseSelection == index ? ">" : " ", kPanelX + 16, rowY, 10, _pauseSelection == index ? selected : normal);
+        DrawText(label, kPanelX + 28, rowY, 10, _pauseSelection == index ? selected : normal);
+        if (rightLabel) {
+            drawTextRightAligned(
+                rightLabel, kPanelX + kPanelW - 18, rowY, 10, _pauseSelection == index ? selected : normal);
+        }
+    };
 
-    DrawText(_pauseSelection == 2 ? ">" : " ", kPanelX + 16, y + 77, 10, _pauseSelection == 2 ? selected : normal);
-    DrawText("EXIT", kPanelX + 28, y + 77, 10, _pauseSelection == 2 ? selected : normal);
-#elif defined(RIDGEDASH_WEB)
-    {
-        const Color sel = fadeColor(Color{131, 255, 160, 255}, alpha);
-        const Color nor = fadeColor(Color{220, 230, 238, 255}, 0.86f * alpha);
-        DrawText(_pauseSelection == 0 ? ">" : " ", kPanelX + 16, y + 47, 10, _pauseSelection == 0 ? sel : nor);
-        DrawText("CRT", kPanelX + 28, y + 47, 10, _pauseSelection == 0 ? sel : nor);
-        drawTextRightAligned(TextFormat("< %s >", view.crtOn ? "ON" : "OFF"),
-                             kPanelX + kPanelW - 18, y + 47, 10, _pauseSelection == 0 ? sel : nor);
-        DrawText(_pauseSelection == 1 ? ">" : " ", kPanelX + 16, y + 62, 10, _pauseSelection == 1 ? sel : nor);
-        DrawText("EXIT", kPanelX + 28, y + 62, 10, _pauseSelection == 1 ? sel : nor);
+    if (view.menuLevel == 0) { // ── Main menu ──
+        drawRow(0, y + 47, "VIDEO");
+        drawRow(1, y + 62, "AUDIO");
+        drawRow(2, y + 77, "QUIT GAME");
+    } else if (view.menuLevel == 1) { // ── Video submenu ──
+        drawRow(0, y + 47, "SCALE", TextFormat("< %s >", view.scaleLabel));
+        drawRow(1, y + 62, "CRT", TextFormat("< %s >", view.crtOn ? "ON" : "OFF"));
+    } else if (view.menuLevel == 2) { // ── Audio submenu ──
+        drawRow(0, y + 47, "BGM", TextFormat("< %s >", view.bgmOn ? "ON" : "OFF"));
+        drawRow(1, y + 62, "SFX", TextFormat("< %s >", view.sfxOn ? "ON" : "OFF"));
     }
 #else
     DrawText(">", kPanelX + 18, y + 45, 10, fadeColor(Color{131, 255, 160, 255}, alpha));

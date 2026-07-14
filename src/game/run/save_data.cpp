@@ -109,6 +109,10 @@ GameSettings loadGameSettings()
             settings.displayScale = std::clamp(value, 0, 4);
         } else if (key == "crt") {
             settings.crtEnabled = (value != 0);
+        } else if (key == "bgm") {
+            settings.bgmOn = (value != 0);
+        } else if (key == "sfx") {
+            settings.sfxOn = (value != 0);
         }
     }
     return settings;
@@ -126,6 +130,8 @@ void saveGameSettings(const GameSettings& settings)
     }
     file << "display_scale " << settings.displayScale << '\n';
     file << "crt " << (settings.crtEnabled ? 1 : 0) << '\n';
+    file << "bgm " << (settings.bgmOn ? 1 : 0) << '\n';
+    file << "sfx " << (settings.sfxOn ? 1 : 0) << '\n';
 }
 
 } // namespace ridge_dash

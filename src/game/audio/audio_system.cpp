@@ -188,6 +188,9 @@ void AudioSystem::unload()
 
 void AudioSystem::play(Sfx id)
 {
+    if (_sfxMuted) {
+        return;
+    }
     std::vector<Sound>& group = _sfx[static_cast<int>(id)];
     if (group.empty()) {
         return;
@@ -326,8 +329,8 @@ void AudioSystem::updateBgm(float dt, const BgmState& state)
     fadeToward(_bgmCalmFade, _bgmActive == 0);
     fadeToward(_bgmIntenseFade, _bgmActive == 1);
 
-    // Master envelope: duck on pause, fade out on game over.
-    const float masterTarget = !state.active ? 0.0f : (state.audible ? 1.0f : kBgmPauseDuck);
+    // Master envelope: duck on pause, fade out on game over, silent when muted.
+    const float masterTarget = _bgmMuted ? 0.0f : (!state.active ? 0.0f : (state.audible ? 1.0f : kBgmPauseDuck));
     _bgmMaster += (masterTarget - _bgmMaster) * frameFactor(kBgmMasterSmoothing, dt);
 
     if (_bgmCalmLoaded) {
@@ -348,6 +351,26 @@ void AudioSystem::updateBgm(float dt, const BgmState& state)
             StopMusicStream(_bgmIntense);
         }
     }
+}
+
+void AudioSystem::setBgmMuted(bool muted)
+{
+    _bgmMuted = muted;
+}
+
+bool AudioSystem::bgmMuted() const
+{
+    return _bgmMuted;
+}
+
+void AudioSystem::setSfxMuted(bool muted)
+{
+    _sfxMuted = muted;
+}
+
+bool AudioSystem::sfxMuted() const
+{
+    return _sfxMuted;
 }
 
 void AudioSystem::resetEngine()
@@ -409,6 +432,16 @@ void AudioSystem::updateEngine(float, const EngineState&) {}
 void AudioSystem::play(Sfx) {}
 void AudioSystem::startBgm() {}
 void AudioSystem::updateBgm(float, const BgmState&) {}
+void AudioSystem::setBgmMuted(bool) {}
+bool AudioSystem::bgmMuted() const
+{
+    return false;
+}
+void AudioSystem::setSfxMuted(bool) {}
+bool AudioSystem::sfxMuted() const
+{
+    return false;
+}
 
 } // namespace ridge_dash
 

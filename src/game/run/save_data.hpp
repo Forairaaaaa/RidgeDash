@@ -26,6 +26,8 @@ void saveGameRecords(const GameRecords& records);
 struct GameSettings {
     int displayScale = 3; // DisplayScaleOption enum value (0=1X .. 4=Fullscreen)
     bool crtEnabled = true;
+    bool bgmOn = true;
+    bool sfxOn = true;
 };
 
 GameSettings loadGameSettings();

@@ -39,6 +39,9 @@ public:
         GameRecords records{};
         const char* scaleLabel = "";
         bool crtOn = true;
+        bool bgmOn = true;
+        bool sfxOn = true;
+        int menuLevel = 0; // 0=Main, 1=Video, 2=Audio
     };
 
     void configureAnimations();

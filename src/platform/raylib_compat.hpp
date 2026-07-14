@@ -71,6 +71,7 @@ enum KeyboardKey {
     KEY_A = 65,
     KEY_C = 67,
     KEY_D = 68,
+    KEY_E = 69,
     KEY_F = 70,
     KEY_G = 71,
     KEY_R = 82,
