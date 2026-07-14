@@ -41,6 +41,10 @@ int hudTextWidth(const char* text, int fontSize)
 
 void drawTextRightAligned(const char* text, int rightX, int y, int fontSize, Color color, float rotation = 0.0f)
 {
+#if defined(RIDGEDASH_USE_FBDEV)
+    (void)rotation;
+    DrawText(text, rightX - hudTextWidth(text, fontSize), y, fontSize, color);
+#else
     if (rotation == 0.0f) {
         DrawText(text, rightX - hudTextWidth(text, fontSize), y, fontSize, color);
         return;
@@ -50,6 +54,7 @@ void drawTextRightAligned(const char* text, int rightX, int y, int fontSize, Col
     const Vector2 center = {static_cast<float>(rightX) - size.x * 0.5f, static_cast<float>(y) + size.y * 0.5f};
     const Vector2 origin = {size.x * 0.5f, size.y * 0.5f};
     DrawTextPro(font, text, center, origin, rotation, fontSize, 1.0f, color);
+#endif
 }
 
 void drawTextCentered(const char* text, int centerX, int y, int fontSize, Color color)
