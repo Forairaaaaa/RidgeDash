@@ -46,6 +46,23 @@ cmake --build build/cp0 -j8
 
 Replace `DRM` with `FBDEV` for framebuffer-only builds.
 
+### Packaging
+
+**macOS (.app bundle, ad-hoc signed, arm64 only):**
+```bash
+./packaging/macos/package_macos.sh
+# Produces: dist/artifacts/RidgeDash-macos-arm64.zip
+```
+
+**CardputerZero (.deb):**
+```bash
+./packaging/cardputer/package_cardputer.sh
+# Default: launcher wrapper + both DRM and FBDEV backends (auto-fallback at runtime).
+# Force a single backend:
+#   RIDGEDASH_PACKAGE_PLATFORM=FBDEV ./packaging/cardputer/package_cardputer.sh
+# Produces: dist/artifacts/m5cardputerzero-ridgedash_x.x.x_m5stack1_arm64.deb
+```
+
 ### Environment variables (Desktop)
 
 | Variable | Effect |
@@ -72,7 +89,7 @@ Replace `DRM` with `FBDEV` for framebuffer-only builds.
 4. Updates higher-level state: ground contact, tricks, run state, camera, environment biome, driver expression, engine/BGM audio
 5. Updates UI animations and pause menu
 
-`draw()` delegates to each subsystem's draw method: environment background → terrain → pickups → vehicle → pickup effects → HUD / start tips / game-over / pause overlays.
+`draw()` lives in **`src/game/render.cpp`** (separated from the update logic). It delegates to each subsystem: environment background → terrain → pickups → vehicle → pickup effects → HUD / start tips / game-over / pause overlays.
 
 ### Physics (Box2D v3.1.1)
 
@@ -80,12 +97,23 @@ Replace `DRM` with `FBDEV` for framebuffer-only builds.
 - **`Vehicle`** — 4 Box2D bodies: chassis, driver head (circle sensor), front wheel, rear wheel. Wheels connected via prismatic joints. Drive torque applied to wheels; air-control torque applied directly to chassis angular velocity.
 - **Render interpolation** — `Vehicle::recordPhysicsSnapshot()` captures prev/cur positions and rotations after each physics step. When rendering at >60fps, `draw()` lerps between snapshots using `renderAlpha()` for smooth motion.
 - **`TerrainSystem`** — Terrain as a chain of Box2D chain-shape bodies, generated procedurally from `TerrainProfile` parameters. Streams: points are appended ahead of the camera and trimmed behind.
-- **Pickups** — Each pickup type (fuel, coin, flea, rocket, cactus, snowman) creates Box2D sensor bodies placed on/above the terrain. Collection uses overlap tests (AABB query) against vehicle shapes plus a distance-based fallback (`collectOverlaps`).
+- **Pickups** — Each pickup type (fuel, coin, flea, rocket, cactus, snowman, giant flea, helmet, squid) creates Box2D sensor bodies placed on/above the terrain. Collection uses overlap tests (AABB query) against vehicle shapes plus a distance-based fallback (`collectOverlaps`). Placement is biome-aware: giant flea only spawns on stone, helmet only on snow.
 
 ### World generation
 
 - **Terrain profiles** (`src/game/world/terrain_profiles.hpp`) — 7 profiles across 4 biomes (Mountain: rolling/ridges/steps/valley; Stone; Desert; Snow). Each profile defines length ranges, slope bounds, noise parameters, bump/kick/break chances. The terrain system selects a random profile, generates a segment, then picks the next profile — creating varied, seamless terrain.
 - **Pickup streaming** — Each pickup type independently decides placement along the terrain using configurable `k*GenerateAhead` constants. Placement uses randomized gaps and terrain-height-aware positioning.
+
+### Biome rendering (`src/game/world/biome/`)
+
+`IBiomeRenderer` is an abstract interface with four concrete singletons: `MountainRenderer`, `StoneRenderer`, `DesertRenderer`, `SnowRenderer`. Each biome provides:
+- **`friction()`** — terrain surface friction coefficient
+- **`terrainColors()`** — `TerrainColors` struct (soil, soilLight, soilDark, subTop, top, marker) for drawing the layered terrain surface
+- **`surfaceThickness()`** — thickness of the colored surface cap
+- **`drawMarkers()`** — biome-specific surface detail marks (grass tufts, cracks, etc.)
+- **`drawHorizon()`** — distant mountain/background silhouette in the biome's color palette
+
+The `Environment` class selects the active renderer via `biomeRendererFor(biome)` and delegates background/horizon drawing to it. The `TerrainSystem` uses the renderer for surface colors and friction. Biome transitions are driven by the terrain system as it generates segments from different biomes.
 
 ### Run state machine (`RunController`)
 
@@ -93,20 +121,32 @@ States: `Ready` → `Running` → `Paused` / `GameOver`.
 
 - `Ready`: start tips shown; first throttle/brake input starts the run.
 - `Running`: fuel burns, stall/crash detection runs. Head hit → immediate game over. Extended inverted stall (chassis angle > ~100° for >2s while stopped) → game over. Game over triggers a 1.5s freeze-frame then shows the summary panel.
-- `Paused`: entered via Esc; pause menu with resume/restart/quit, display scale, CRT toggle.
-- Score = max distance traveled + coin score + trick (flip) bonus. `RunRecords` persists best-ever score to a save file.
+- `Paused`: entered via Esc; pause menu with resume/restart/quit, display scale, CRT toggle, BGM/SFX toggles (in sub-menus: Main / Video / Audio).
+- Score = max distance traveled + coin score + trick bonus. `TrickTracker` counts front flips and back flips separately; bonus is awarded per flip landed.
+- `RunRecords` persists best-ever score/coins/flips to a save file. `RunStats` tracks the current run's stats.
+
+### Save data (`src/game/run/save_data.hpp/.cpp`)
+
+Two persisted records stored under `$XDG_STATE_HOME/ridgedash/` (falls back to `~/.local/state/ridgedash/`):
+
+- **`GameRecords`** — best-ever score, coins, flips, frontFlips, backFlips → `records.txt`
+- **`GameSettings`** — displayScale, crtEnabled, bgmOn, sfxOn → `settings.txt`
+
+Loaded at startup, saved whenever changed. The pause menu's audio/video settings persist across sessions.
 
 ### Audio (`AudioSystem`)
 
-Compiled only with `RIDGEDASH_ENABLE_AUDIO` (Desktop/Web); no-ops on DRM/FBDEV.
+Compiled only with `RIDGEDASH_ENABLE_AUDIO` (Desktop/Web/DRM); no-ops on FBDEV.
 
 - **Engine** — A looping WAV whose pitch and volume are modulated by vehicle speed and throttle/brake input.
 - **BGM** — Two-track crossfade (calm/intense) based on vehicle speed with hysteresis and dwell timers. Tracks are shuffled per category with no back-to-back repeats.
-- **SFX** — One-shot sounds with variant groups (multiple .wav files per event, one picked at random). Source `.bfxr` files are stored alongside the .wav files.
+- **SFX** — One-shot sounds with variant groups (multiple .wav files per event, one picked at random): Coin, Fuel, Cactus, Snowman, Rocket, RocketFinish, FleaJump, CarLanding, CarHit, CarFlip, UiSelect. Source `.bfxr` files are stored alongside the .wav files.
 
 ### UI (`GameUi`, `PauseMenuController`)
 
 Uses `smooth_ui_toolkit` for animated panel transitions (slide + fade). The UI layer draws at the game's fixed 320×170 coordinate space. `GameInput` abstracts keyboard polling into three categories: `Drive` (throttle/brake), `Commands` (pause/reset/confirm/squid), and `Menu` (directional navigation). On DRM targets, input goes through `evdev` instead of raylib's GLFW backend.
+
+`PauseMenuController` manages a three-level menu hierarchy (`MenuLevel::Main` → `Video` / `Audio`) with settings for display scale, CRT toggle, BGM toggle, and SFX toggle. Settings changes are tracked via a dirty flag and persisted through `saveGameSettings()`.
 
 ### Platform abstraction (`src/platform/`)
 
@@ -118,12 +158,16 @@ Uses `smooth_ui_toolkit` for animated panel transitions (slide + fade). The UI l
 
 Set by CMake based on `RIDGEDASH_RAYLIB_PLATFORM`:
 - `RIDGEDASH_DESKTOP_RENDER` — Desktop build (GLFW + raylib audio)
-- `RIDGEDASH_DRM_RENDER` — DRM/KMS build (GPU rendering, no audio)
+- `RIDGEDASH_DRM_RENDER` — DRM/KMS build (GPU rendering, audio enabled)
 - `RIDGEDASH_USE_FBDEV` — Raw framebuffer build (no raylib, no audio)
 - `RIDGEDASH_WEB` — Emscripten build
-- `RIDGEDASH_ENABLE_AUDIO` — Audio enabled (Desktop + Web)
+- `RIDGEDASH_ENABLE_AUDIO` — Audio enabled (Desktop + Web + DRM)
 - `RIDGEDASH_USE_EVDEV_INPUT` — evdev keyboard input (DRM builds)
 - `RIDGEDASH_SCREEN_WIDTH` / `RIDGEDASH_SCREEN_HEIGHT` — Fixed at 320×170
+
+### CI/CD
+
+GitHub Actions workflow (`.github/workflows/web.yml`) builds the Emscripten/Web target with Emscripten 3.1.74 and deploys to GitHub Pages. Manual-dispatch only (not triggered on push).
 
 ## Key constants
 
