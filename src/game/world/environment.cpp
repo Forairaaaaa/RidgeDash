@@ -238,12 +238,29 @@ void drawSailboats(const Texture2D& sailboat, Vector2 camera, float day, uint32_
     const int count = 1 + static_cast<int>(hash32(seed ^ 0x51A1B0A7U) % 3U);
     const Color tint = fadeColor(WHITE, game_config::clampf(day * 1.2f, 0.0f, 1.0f));
 
+    struct Boat {
+        float x;
+        float y;
+    };
+
+    Boat boats[3];
+    int boatCount = 0;
     for (int i = 0; i < count; ++i) {
         const uint32_t boatSeed = hash32(seed + static_cast<uint32_t>(i) * 0x9E3779B9U);
         const int baseX = 72 + i * 128 + static_cast<int>((boatSeed >> 5U) % 52U);
-        const int x = wrapToRange(baseX - static_cast<int>(std::round(camera.x * (0.045f + i * 0.006f))), wrap) - 64;
-        const int y = 78 + static_cast<int>((boatSeed >> 17U) % 13U);
-        drawSpriteCentered(sailboat, Vector2{static_cast<float>(x), static_cast<float>(y)}, 12.0f, 9.0f, 0.0f, tint);
+        boats[boatCount].x = static_cast<float>(
+            wrapToRange(baseX - static_cast<int>(std::round(camera.x * (0.045f + i * 0.006f))), wrap) - 64);
+        boats[boatCount].y = static_cast<float>(78 + static_cast<int>((boatSeed >> 17U) % 13U));
+        ++boatCount;
+    }
+
+    // Draw farther boats (smaller y) first so closer ones (larger y) overlap them.
+    std::sort(boats, boats + boatCount, [](const Boat& a, const Boat& b) {
+        return a.y < b.y;
+    });
+
+    for (int i = 0; i < boatCount; ++i) {
+        drawSpriteCentered(sailboat, Vector2{boats[i].x, boats[i].y}, 12.0f, 9.0f, 0.0f, tint);
     }
 }
 
