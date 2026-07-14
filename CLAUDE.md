@@ -182,3 +182,11 @@ All tunable game parameters live in `src/game/game_config.hpp`: pixels-per-meter
 | smooth_ui_toolkit | v2.13.0 | Animated UI transitions |
 
 All three are cloned by `fetch_repos.py` into `dependencies/` and built via `add_subdirectory` in CMake.
+
+## Code style
+
+A `.clang-format` file (BasedOnStyle: LLVM, 4-space indent, 120 columns) is at the repo root. After modifying any `.cpp` / `.hpp` / `.h` / `.mm` file, run:
+
+```bash
+clang-format -i <file>
+```
