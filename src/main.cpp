@@ -9,6 +9,7 @@
  *
  */
 #include "game/ridge_dash_game.hpp"
+#include "game/run/save_data.hpp"
 
 #include "platform/native_window.hpp"
 #include "platform/raylib_compat.hpp"
@@ -49,7 +50,7 @@ int targetFps()
     return 120;
 }
 
-DisplayScaleOption initialDisplayScaleOption()
+DisplayScaleOption initialDisplayScaleOption(const ridge_dash::GameSettings& settings)
 {
     if (const char* value = std::getenv("RIDGEDASH_WINDOW_SCALE")) {
         if (std::strcmp(value, "full") == 0 || std::strcmp(value, "fullscreen") == 0) {
@@ -57,16 +58,16 @@ DisplayScaleOption initialDisplayScaleOption()
         }
         return static_cast<DisplayScaleOption>(std::clamp(std::atoi(value), 1, 4) - 1);
     }
-    return DisplayScaleOption::Scale4;
+    return static_cast<DisplayScaleOption>(settings.displayScale);
 }
 
-// CRT post-process default from RIDGEDASH_CRT ("0"/"off" disables). Defaults on.
-bool crtInitiallyEnabled()
+// CRT post-process default from RIDGEDASH_CRT ("0"/"off" disables), else saved setting.
+bool crtInitiallyEnabled(const ridge_dash::GameSettings& settings)
 {
     if (const char* value = std::getenv("RIDGEDASH_CRT")) {
         return !(std::strcmp(value, "0") == 0 || std::strcmp(value, "off") == 0);
     }
-    return true;
+    return settings.crtEnabled;
 }
 
 int scaleValue(DisplayScaleOption option)
@@ -93,7 +94,8 @@ int scaleValue(DisplayScaleOption option)
 int fboSupersampleScale()
 {
     const int monitor = GetCurrentMonitor();
-    const int fit = std::max(1, static_cast<int>(std::ceil(static_cast<float>(GetMonitorHeight(monitor)) / kScreenHeight)));
+    const int fit =
+        std::max(1, static_cast<int>(std::ceil(static_cast<float>(GetMonitorHeight(monitor)) / kScreenHeight)));
     return std::clamp(std::max(renderScale(), fit), 1, 8);
 }
 
@@ -128,8 +130,9 @@ int windowScale()
 
 int main()
 {
+    const ridge_dash::GameSettings launchSettings = ridge_dash::loadGameSettings();
 #if defined(RIDGEDASH_DESKTOP_RENDER)
-    DisplayScaleOption displayOption = initialDisplayScaleOption();
+    DisplayScaleOption displayOption = initialDisplayScaleOption(launchSettings);
     const int displayScale = scaleValue(displayOption);
 #else
     const int displayScale = windowScale();
@@ -234,7 +237,7 @@ int main()
             break;
         }
     }
-    bool crtEnabled = crtInitiallyEnabled() && crtLoaded;
+    bool crtEnabled = crtInitiallyEnabled(launchSettings) && crtLoaded;
 #endif
 
     {
@@ -250,11 +253,18 @@ int main()
 
         while (!RidgeDashWindowShouldClose() && !game.shouldQuit()) {
 #if defined(RIDGEDASH_DESKTOP_RENDER)
+            bool settingsChanged = false;
             if (game.consumeDisplayScaleRequest(displayOption)) {
                 applyDisplayOption(displayOption);
+                settingsChanged = true;
             }
             if (bool requested = false; game.consumeCrtRequest(requested)) {
                 crtEnabled = requested && crtLoaded;
+                settingsChanged = true;
+            }
+            if (settingsChanged) {
+                ridge_dash::saveGameSettings(
+                    ridge_dash::GameSettings{static_cast<int>(game.displayScaleOption()), game.crtEnabled()});
             }
             // Hide the cursor whenever the window is fullscreen (covers both the menu
             // and the OS green-button / shortcut), show it otherwise. Tracked so we

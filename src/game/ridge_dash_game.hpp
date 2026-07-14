@@ -44,8 +44,10 @@ public:
     void draw() const;
     bool shouldQuit() const;
     void setDisplayScaleOption(DisplayScaleOption option);
+    DisplayScaleOption displayScaleOption() const;
     bool consumeDisplayScaleRequest(DisplayScaleOption& option);
     void setCrtEnabled(bool enabled);
+    bool crtEnabled() const;
     bool consumeCrtRequest(bool& enabled);
     void setInterpolationEnabled(bool enabled);
     bool renderInterpolation() const;
@@ -143,11 +145,11 @@ private:
     TrickTracker _trickTracker;
     float _startX = 0.0f;
     uint32_t _runSeed = 0;
-    bool _bgmIntense = false;   // current calm/intense BGM state (hysteresis)
-    float _bgmCalmTimer = 0.0f; // dwell time spent slow before switching back to calm
-    bool _helmetActive = false; // helmet revive protection active
+    bool _bgmIntense = false;             // current calm/intense BGM state (hysteresis)
+    float _bgmCalmTimer = 0.0f;           // dwell time spent slow before switching back to calm
+    bool _helmetActive = false;           // helmet revive protection active
     bool _helmetRescuedThisFrame = false; // prevent multi-segment head hits
-    float _invincibleTimer = 0.0f; // post-rescue invincibility (seconds)
+    float _invincibleTimer = 0.0f;        // post-rescue invincibility (seconds)
     bool _quitRequested = false;
 };
 

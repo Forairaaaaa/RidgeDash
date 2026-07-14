@@ -24,6 +24,7 @@ public:
     Action update(const GameInput::Menu& input, GameUi& ui);
 
     void setDisplayScaleOption(DisplayScaleOption option);
+    DisplayScaleOption displayScaleOption() const;
     bool consumeDisplayScaleRequest(DisplayScaleOption& option);
     const char* scaleLabel() const;
 

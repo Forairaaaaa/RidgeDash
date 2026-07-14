@@ -71,6 +71,11 @@ void PauseMenuController::setDisplayScaleOption(DisplayScaleOption option)
     _displayScaleOption = option;
 }
 
+DisplayScaleOption PauseMenuController::displayScaleOption() const
+{
+    return _displayScaleOption;
+}
+
 bool PauseMenuController::consumeDisplayScaleRequest(DisplayScaleOption& option)
 {
     if (!_displayScaleRequestPending) {

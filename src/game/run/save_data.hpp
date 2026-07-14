@@ -23,4 +23,12 @@ struct GameRecords {
 GameRecords loadGameRecords();
 void saveGameRecords(const GameRecords& records);
 
+struct GameSettings {
+    int displayScale = 3; // DisplayScaleOption enum value (0=1X .. 4=Fullscreen)
+    bool crtEnabled = true;
+};
+
+GameSettings loadGameSettings();
+void saveGameSettings(const GameSettings& settings);
+
 } // namespace ridge_dash

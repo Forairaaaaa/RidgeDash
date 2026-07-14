@@ -128,6 +128,11 @@ void RidgeDashGame::setDisplayScaleOption(DisplayScaleOption option)
     _pauseMenu.setDisplayScaleOption(option);
 }
 
+RidgeDashGame::DisplayScaleOption RidgeDashGame::displayScaleOption() const
+{
+    return _pauseMenu.displayScaleOption();
+}
+
 bool RidgeDashGame::consumeDisplayScaleRequest(DisplayScaleOption& option)
 {
     return _pauseMenu.consumeDisplayScaleRequest(option);
@@ -136,6 +141,11 @@ bool RidgeDashGame::consumeDisplayScaleRequest(DisplayScaleOption& option)
 void RidgeDashGame::setCrtEnabled(bool enabled)
 {
     _pauseMenu.setCrtEnabled(enabled);
+}
+
+bool RidgeDashGame::crtEnabled() const
+{
+    return _pauseMenu.crtEnabled();
 }
 
 bool RidgeDashGame::consumeCrtRequest(bool& enabled)
