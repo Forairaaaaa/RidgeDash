@@ -9,7 +9,7 @@
  *
  */
 #include "game/world/terrain.hpp"
-
+#include "game/world/biome/biome.hpp"
 #include "game/game_config.hpp"
 
 #include <algorithm>
@@ -26,21 +26,6 @@ using namespace game_config;
 const TerrainProfile& profileAt(size_t index)
 {
     return kTerrainProfiles[index % kTerrainProfiles.size()];
-}
-
-float frictionForBiome(TerrainBiome biome)
-{
-    switch (biome) {
-        case TerrainBiome::Stone:
-            return 0.86f;
-        case TerrainBiome::Desert:
-            return 1.08f;
-        case TerrainBiome::Snow:
-            return 0.62f;
-        case TerrainBiome::Mountain:
-        default:
-            return 0.96f;
-    }
 }
 
 std::string lowerCopy(const char* value)
@@ -321,7 +306,7 @@ b2BodyId TerrainSystem::createBody(const Point& a, const Point& b)
     }
 
     b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.material.friction = frictionForBiome(profileAt(a.profileIndex).biome);
+    shapeDef.material.friction = biomeRendererFor(profileAt(a.profileIndex).biome).friction();
     shapeDef.material.restitution = 0.02f;
     shapeDef.enableSensorEvents = true;
 
@@ -383,59 +368,34 @@ void TerrainSystem::draw(Vector2 camera) const
 
     for (size_t i = 1; i < _points.size(); ++i) {
         const TerrainProfile& profile = profileAt(_points[i].profileIndex);
-        const bool stone = profile.biome == TerrainBiome::Stone;
-        const bool desert = profile.biome == TerrainBiome::Desert;
-        const bool snow = profile.biome == TerrainBiome::Snow;
+        const IBiomeRenderer& biome = biomeRendererFor(profile.biome);
+        const TerrainColors& c = biome.terrainColors();
+
         const Vector2 a = worldToScreen(camera, {_points[i - 1].x, _points[i - 1].y});
         const Vector2 b = worldToScreen(camera, {_points[i].x, _points[i].y});
         if ((a.x < -30.0f && b.x < -30.0f) || (a.x > kScreenWidth + 30.0f && b.x > kScreenWidth + 30.0f)) {
             continue;
         }
-        const Color soil = stone    ? Color{48, 49, 54, 255}
-                           : desert ? Color{91, 62, 44, 255}
-                           : snow   ? Color{45, 63, 78, 255}
-                                    : Color{56, 43, 38, 255};
-        const Color soilLight = stone    ? Color{68, 69, 76, 255}
-                                : desert ? Color{115, 80, 55, 255}
-                                : snow   ? Color{64, 84, 102, 255}
-                                         : Color{75, 59, 48, 255};
-        const Color soilDark  = stone    ? Color{32, 33, 36, 255}
-                                : desert ? Color{68, 44, 30, 255}
-                                : snow   ? Color{30, 44, 56, 255}
-                                         : Color{38, 30, 26, 255};
-        const Color subTop = stone    ? Color{76, 80, 87, 255}
-                             : desert ? Color{166, 115, 58, 255}
-                             : snow   ? Color{125, 165, 184, 255}
-                                      : Color{55, 78, 51, 255};
-        const Color top = stone    ? Color{140, 147, 153, 255}
-                          : desert ? Color{225, 180, 88, 255}
-                          : snow   ? Color{232, 248, 255, 255}
-                                   : Color{128, 188, 89, 255};
-        const Color marker = stone    ? Color{96, 101, 108, 255}
-                             : desert ? Color{130, 83, 49, 255}
-                             : snow   ? Color{151, 191, 210, 255}
-                                      : Color{86, 62, 45, 255};
-        DrawLineEx({std::round(a.x), std::round(a.y + 9.0f)}, {std::round(b.x), std::round(b.y + 9.0f)}, 18.0f, soil);
-        DrawLineEx({std::round(a.x), std::round(a.y + 3.0f)}, {std::round(b.x), std::round(b.y + 3.0f)}, 6.0f, subTop);
-        DrawLineEx({std::round(a.x), std::round(a.y)},
-                   {std::round(b.x), std::round(b.y)},
-                   stone ? 4.0f : (desert ? 3.5f : (snow ? 4.0f : 3.0f)),
-                   top);
+
+        // Surface layers.
+        DrawLineEx({std::round(a.x), std::round(a.y + 9.0f)}, {std::round(b.x), std::round(b.y + 9.0f)}, 18.0f, c.soil);
+        DrawLineEx(
+            {std::round(a.x), std::round(a.y + 3.0f)}, {std::round(b.x), std::round(b.y + 3.0f)}, 6.0f, c.subTop);
+        DrawLineEx(
+            {std::round(a.x), std::round(a.y)}, {std::round(b.x), std::round(b.y)}, biome.surfaceThickness(), c.top);
 
         // Base fill from surface level down to screen bottom.
-        // A single solid pass guarantees zero gaps, even on steep slopes.
         {
             const float screenH = static_cast<float>(kScreenHeight);
             const Vector2 sa = {a.x, a.y + 9.0f};
             const Vector2 sb = {b.x, b.y + 9.0f};
             const Vector2 bl = {a.x, screenH};
             const Vector2 br = {b.x, screenH};
-            DrawTriangle(sa, br, sb, soilDark);
-            DrawTriangle(sa, bl, br, soilDark);
+            DrawTriangle(sa, br, sb, c.soilDark);
+            DrawTriangle(sa, bl, br, c.soilDark);
         }
 
-        // Two lighter layers overlaid — any micro-gap just shows the
-        // similar-coloured base fill, reading as natural noise.
+        // Two lighter layers overlaid for texture.
         {
             const float screenH = static_cast<float>(kScreenHeight);
             const float ax = _points[i - 1].x;
@@ -448,7 +408,7 @@ void TerrainSystem::draw(Vector2 camera) const
 
             const float offA[2] = {16.0f + n0a, 34.0f + n1a};
             const float offB[2] = {16.0f + n0b, 34.0f + n1b};
-            const Color colors[2] = {soilLight, soil};
+            const Color colors[2] = {c.soilLight, c.soil};
             for (int layer = 0; layer < 2; ++layer) {
                 const Vector2 ta = {a.x, a.y + offA[layer]};
                 const Vector2 tb = {b.x, b.y + offB[layer]};
@@ -459,35 +419,8 @@ void TerrainSystem::draw(Vector2 camera) const
             }
         }
 
-        // Scattered soil markers — small rocks/pebbles at varying depths.
-        // Pseudo-random placement based on world position so markers stay
-        // fixed as the camera scrolls, without a per-frame RNG call.
-        {
-            const float wx = _points[i - 1].x;
-            auto hash = [](float seed) -> float {
-                float v = std::sin(seed * 127.1f) * 43758.5453f;
-                return v - std::floor(v);
-            };
-            const float r0 = hash(wx);
-            const float r1 = hash(wx + 5.0f);
-            const float r2 = hash(wx + 9.0f);
-
-            // Larger pebbles: ~30% chance per point, scattered through the soil
-            if (r0 < 0.30f) {
-                const float depth = 12.0f + r1 * 48.0f;
-                const int size = r2 < 0.25f ? 2 : (r2 < 0.70f ? 3 : 4);
-                const Color c = depth < 28.0f ? marker : soilDark;
-                DrawRectangle(static_cast<int>(std::round(a.x)),
-                              static_cast<int>(std::round(a.y + depth)), size, size, c);
-            }
-
-            // Smaller speckles at higher density for texture
-            if (r1 < 0.28f) {
-                const float depth = 10.0f + r2 * 50.0f;
-                DrawRectangle(static_cast<int>(std::round(a.x)),
-                              static_cast<int>(std::round(a.y + depth)), 2, 2, marker);
-            }
-        }
+        // Per-biome surface markers (pebbles / texture).
+        biome.drawMarkers(a, _points[i - 1].x, c);
     }
 }
 
