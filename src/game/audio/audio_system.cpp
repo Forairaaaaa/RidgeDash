@@ -414,7 +414,7 @@ void AudioSystem::updateEngine(float dt, const EngineState& state)
     _volume += (targetVolume - _volume) * frameFactor(kVolumeSmoothing, dt);
 
     SetMusicPitch(_engine, kIdlePitch + (kMaxPitch - kIdlePitch) * _level);
-    SetMusicVolume(_engine, _volume);
+    SetMusicVolume(_engine, _sfxMuted ? 0.0f : _volume);
     UpdateMusicStream(_engine);
 }
 
