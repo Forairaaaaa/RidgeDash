@@ -99,7 +99,52 @@ PauseMenuController::Action PauseMenuController::update(const GameInput::Menu& i
             break;
         }
     }
+#elif defined(RIDGEDASH_DRM_RENDER)
+    // DRM: no video settings, but audio menu is available.
+    switch (_menuLevel) {
+        case MenuLevel::Main: {
+            constexpr int kItemCount = 2; // AUDIO, EXIT GAME
+            if (input.up) {
+                ui.setPauseSelection((ui.pauseSelection() + kItemCount - 1) % kItemCount);
+            }
+            if (input.down) {
+                ui.setPauseSelection((ui.pauseSelection() + 1) % kItemCount);
+            }
+            if (input.confirm) {
+                if (ui.pauseSelection() == 0) {
+                    _menuLevel = MenuLevel::Audio;
+                    ui.setPauseSelection(0);
+                } else {
+                    action = Action::QuitGame;
+                }
+            }
+            break;
+        }
+
+        case MenuLevel::Audio: {
+            constexpr int kItemCount = 2; // BGM, SFX
+            if (input.up) {
+                ui.setPauseSelection((ui.pauseSelection() + kItemCount - 1) % kItemCount);
+            }
+            if (input.down) {
+                ui.setPauseSelection((ui.pauseSelection() + 1) % kItemCount);
+            }
+            if (ui.pauseSelection() == 0 && (input.left || input.right || input.confirm)) {
+                _bgmOn = !_bgmOn;
+                _settingsDirty = true;
+            }
+            if (ui.pauseSelection() == 1 && (input.left || input.right || input.confirm)) {
+                _sfxOn = !_sfxOn;
+                _settingsDirty = true;
+            }
+            break;
+        }
+
+        case MenuLevel::Video:
+            break; // unreachable on DRM
+    }
 #else
+    // FBDEV: simple exit only.
     ui.setPauseSelection(0);
     if (input.confirm) {
         action = Action::QuitGame;

@@ -508,7 +508,7 @@ void GameUi::drawPauseMenu(const PauseView& view) const
                               alpha);
     }
 
-#if defined(RIDGEDASH_DESKTOP_RENDER) || defined(RIDGEDASH_WEB)
+#if defined(RIDGEDASH_DESKTOP_RENDER) || defined(RIDGEDASH_WEB) || defined(RIDGEDASH_DRM_RENDER)
     const Color selected = fadeColor(Color{131, 255, 160, 255}, alpha);
     const Color normal = fadeColor(Color{220, 230, 238, 255}, 0.86f * alpha);
 
@@ -523,6 +523,17 @@ void GameUi::drawPauseMenu(const PauseView& view) const
         }
     };
 
+#if defined(RIDGEDASH_DRM_RENDER)
+    // DRM: no VIDEO submenu; main menu has AUDIO + EXIT GAME.
+    if (view.menuLevel == 0) { // ── Main menu ──
+        drawRow(0, y + 47, "AUDIO");
+        drawRow(1, y + 62, "EXIT GAME");
+    } else if (view.menuLevel == 2) { // ── Audio submenu ──
+        drawRow(0, y + 47, "BGM", TextFormat("< %s >", view.bgmOn ? "ON" : "OFF"));
+        drawRow(1, y + 62, "SFX", TextFormat("< %s >", view.sfxOn ? "ON" : "OFF"));
+    }
+#else
+    // Desktop / Web: full menu with VIDEO + AUDIO.
     if (view.menuLevel == 0) { // ── Main menu ──
         drawRow(0, y + 47, "VIDEO");
         drawRow(1, y + 62, "AUDIO");
@@ -534,7 +545,9 @@ void GameUi::drawPauseMenu(const PauseView& view) const
         drawRow(0, y + 47, "BGM", TextFormat("< %s >", view.bgmOn ? "ON" : "OFF"));
         drawRow(1, y + 62, "SFX", TextFormat("< %s >", view.sfxOn ? "ON" : "OFF"));
     }
+#endif
 #else
+    // FBDEV: simple exit only.
     DrawText(">", kPanelX + 18, y + 45, 10, fadeColor(Color{131, 255, 160, 255}, alpha));
     DrawText("EXIT", kPanelX + 30, y + 45, 10, fadeColor(Color{131, 255, 160, 255}, alpha));
 #endif
