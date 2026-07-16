@@ -11,8 +11,9 @@
 // Plus barrel curvature, chromatic aberration, and a vignette. UV past the curved
 // edge renders black, which reads as the CRT bezel.
 //
-// This is NOT the full guest pipeline (no NTSC signal, LUT, halation/bloom, or
-// multi-pass) — just the perceptual essentials in one fragment shader.
+// Bloom is supplied by a separate desktop multi-pass downsample/upsample chain.
+// Keeping that non-local effect outside this pass gives it a genuinely broad,
+// soft radius without a large per-fragment sampling kernel here.
 //
 // Changelog vs. the previous version:
 //   - uResolution now actually used: aperture-grille triad size scales with
@@ -34,10 +35,12 @@ in vec2 fragTexCoord;
 in vec4 fragColor;
 
 uniform sampler2D texture0;
+uniform sampler2D bloomTexture;
 uniform vec4 colDiffuse;
 
 uniform vec2 uResolution; // destination size in pixels
 uniform float uTime;      // seconds, for subtle animated flicker
+uniform float uBloomIntensity;
 
 out vec4 finalColor;
 
@@ -118,6 +121,14 @@ void main()
     // Work in linear light for the mask/scanline multiplies so highlights and
     // shadows attenuate correctly instead of a flat sRGB-space multiply.
     col = pow(max(col, 0.0), vec3(GAMMA));
+
+    // The bloom texture was built from the uncurved scene at several scales.
+    // Sample it with the curved UV so its glow remains registered to the glass,
+    // then add in linear light before scanlines and the grille shape it. The
+    // Reinhard shoulder reins in the hot center while preserving dim halo detail.
+    vec3 bloom = pow(max(texture(bloomTexture, clamp(uv, 0.0, 1.0)).rgb, 0.0), vec3(GAMMA));
+    bloom = bloom / (vec3(1.0) + bloom);
+    col += bloom * uBloomIntensity;
 
     // Beam-shaped scanlines: brighter pixels get a wider (fuller) beam, dark ones
     // stay a thin line. Gaussian falloff across each native row. Row position is

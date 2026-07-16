@@ -14,6 +14,7 @@
 #include "platform/native_window.hpp"
 #include "platform/raylib_compat.hpp"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -218,6 +219,8 @@ int main()
     Shader crtShader{};
     int crtResolutionLoc = -1;
     int crtTimeLoc = -1;
+    int crtBloomTextureLoc = -1;
+    int crtBloomIntensityLoc = -1;
     bool crtLoaded = false;
     const std::string crtAppDir = GetApplicationDirectory();
     const std::string crtCandidates[] = {
@@ -232,11 +235,81 @@ int main()
             if (IsShaderValid(crtShader)) {
                 crtResolutionLoc = GetShaderLocation(crtShader, "uResolution");
                 crtTimeLoc = GetShaderLocation(crtShader, "uTime");
+                crtBloomTextureLoc = GetShaderLocation(crtShader, "bloomTexture");
+                crtBloomIntensityLoc = GetShaderLocation(crtShader, "uBloomIntensity");
                 crtLoaded = true;
             }
             break;
         }
     }
+
+    // Bloom is desktop-only and built as a half-resolution bright pass followed
+    // by three more bilinear downsample levels. Upsampling them additively gives
+    // a broad, smooth halo without a large sampling kernel in the CRT shader.
+    Shader brightPassShader{};
+    int brightPassThresholdLoc = -1;
+    int brightPassKneeLoc = -1;
+    bool brightPassLoaded = false;
+    const std::string brightPassCandidates[] = {
+        "assets/shaders/brightpass.fs",
+        crtAppDir + "assets/shaders/brightpass.fs",
+        crtAppDir + "../assets/shaders/brightpass.fs",
+        crtAppDir + "../Resources/assets/shaders/brightpass.fs",
+    };
+    for (const std::string& path : brightPassCandidates) {
+        if (FileExists(path.c_str())) {
+            brightPassShader = LoadShader(nullptr, path.c_str());
+            if (IsShaderValid(brightPassShader)) {
+                brightPassThresholdLoc = GetShaderLocation(brightPassShader, "uThreshold");
+                brightPassKneeLoc = GetShaderLocation(brightPassShader, "uKnee");
+                constexpr float kBloomThreshold = 0.58f;
+                constexpr float kBloomKnee = 0.32f;
+                SetShaderValue(brightPassShader, brightPassThresholdLoc, &kBloomThreshold, SHADER_UNIFORM_FLOAT);
+                SetShaderValue(brightPassShader, brightPassKneeLoc, &kBloomKnee, SHADER_UNIFORM_FLOAT);
+                brightPassLoaded = true;
+            }
+            break;
+        }
+    }
+
+    constexpr int kBloomLevelCount = 4;
+    std::array<RenderTexture2D, kBloomLevelCount> bloomTargets{};
+    int bloomOutputWidth = 0;
+    int bloomOutputHeight = 0;
+    auto unloadBloomTargets = [&]() {
+        for (RenderTexture2D& target : bloomTargets) {
+            if (IsRenderTextureValid(target)) {
+                UnloadRenderTexture(target);
+                target = {};
+            }
+        }
+        bloomOutputWidth = 0;
+        bloomOutputHeight = 0;
+    };
+    auto loadBloomTargets = [&](int outputWidth, int outputHeight) {
+        if (outputWidth == bloomOutputWidth && outputHeight == bloomOutputHeight &&
+            IsRenderTextureValid(bloomTargets[0])) {
+            return true;
+        }
+
+        unloadBloomTargets();
+        int width = std::max(1, outputWidth / 2);
+        int height = std::max(1, outputHeight / 2);
+        for (RenderTexture2D& target : bloomTargets) {
+            target = LoadRenderTexture(width, height);
+            if (!IsRenderTextureValid(target)) {
+                unloadBloomTargets();
+                return false;
+            }
+            SetTextureFilter(target.texture, TEXTURE_FILTER_BILINEAR);
+            SetTextureWrap(target.texture, TEXTURE_WRAP_CLAMP);
+            width = std::max(1, width / 2);
+            height = std::max(1, height / 2);
+        }
+        bloomOutputWidth = outputWidth;
+        bloomOutputHeight = outputHeight;
+        return true;
+    };
     bool crtEnabled = crtInitiallyEnabled(launchSettings) && crtLoaded;
 #endif
 
@@ -307,6 +380,80 @@ int main()
                 EndMode2D();
                 EndTextureMode();
 
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+                bool bloomReady = false;
+                if (crtEnabled && brightPassLoaded && loadBloomTargets(destWidth, destHeight)) {
+                    // Extract highlights while scaling the scene to half the
+                    // final output size. RenderTexture UVs are bottom-up, hence
+                    // the negative source heights throughout this chain.
+                    BeginTextureMode(bloomTargets[0]);
+                    ClearBackground(BLACK);
+                    BeginShaderMode(brightPassShader);
+                    DrawTexturePro(renderTarget.texture,
+                                   Rectangle{0.0f,
+                                             0.0f,
+                                             static_cast<float>(renderTarget.texture.width),
+                                             -static_cast<float>(renderTarget.texture.height)},
+                                   Rectangle{0.0f,
+                                             0.0f,
+                                             static_cast<float>(bloomTargets[0].texture.width),
+                                             static_cast<float>(bloomTargets[0].texture.height)},
+                                   Vector2{0.0f, 0.0f},
+                                   0.0f,
+                                   WHITE);
+                    EndShaderMode();
+                    EndTextureMode();
+
+                    // Downsample. Bilinear filtering at each smaller level acts
+                    // as the low-pass filter for the bloom pyramid.
+                    for (int i = 1; i < kBloomLevelCount; ++i) {
+                        BeginTextureMode(bloomTargets[i]);
+                        ClearBackground(BLACK);
+                        DrawTexturePro(bloomTargets[i - 1].texture,
+                                       Rectangle{0.0f,
+                                                 0.0f,
+                                                 static_cast<float>(bloomTargets[i - 1].texture.width),
+                                                 -static_cast<float>(bloomTargets[i - 1].texture.height)},
+                                       Rectangle{0.0f,
+                                                 0.0f,
+                                                 static_cast<float>(bloomTargets[i].texture.width),
+                                                 static_cast<float>(bloomTargets[i].texture.height)},
+                                       Vector2{0.0f, 0.0f},
+                                       0.0f,
+                                       WHITE);
+                        EndTextureMode();
+                    }
+
+                    // Reconstruct from wide to the quarter-resolution level.
+                    // Skipping the half-resolution level in the final composite
+                    // removes the tight, white bloom core while retaining a more
+                    // visible soft halo. Retaining each
+                    // target's existing image mixes several halo scales. Each
+                    // wider level contributes less energy, preventing the four
+                    // levels from stacking into a blown-out white mass.
+                    constexpr unsigned char kBloomUpsampleAlpha = 96; // 37.6%
+                    for (int i = kBloomLevelCount - 2; i >= 1; --i) {
+                        BeginTextureMode(bloomTargets[i]);
+                        BeginBlendMode(BLEND_ADDITIVE);
+                        DrawTexturePro(bloomTargets[i + 1].texture,
+                                       Rectangle{0.0f,
+                                                 0.0f,
+                                                 static_cast<float>(bloomTargets[i + 1].texture.width),
+                                                 -static_cast<float>(bloomTargets[i + 1].texture.height)},
+                                       Rectangle{0.0f,
+                                                 0.0f,
+                                                 static_cast<float>(bloomTargets[i].texture.width),
+                                                 static_cast<float>(bloomTargets[i].texture.height)},
+                                       Vector2{0.0f, 0.0f},
+                                       0.0f,
+                                       Color{255, 255, 255, kBloomUpsampleAlpha});
+                        EndBlendMode();
+                        EndTextureMode();
+                    }
+                    bloomReady = true;
+                }
+#endif
+
                 BeginDrawing();
                 ClearBackground(BLACK);
 #if defined(RIDGEDASH_DESKTOP_RENDER)
@@ -315,7 +462,12 @@ int main()
                     const float t = static_cast<float>(GetTime());
                     SetShaderValue(crtShader, crtResolutionLoc, &res, SHADER_UNIFORM_VEC2);
                     SetShaderValue(crtShader, crtTimeLoc, &t, SHADER_UNIFORM_FLOAT);
+                    const float bloomIntensity = bloomReady ? 0.32f : 0.0f;
+                    SetShaderValue(crtShader, crtBloomIntensityLoc, &bloomIntensity, SHADER_UNIFORM_FLOAT);
                     BeginShaderMode(crtShader);
+                    if (bloomReady) {
+                        SetShaderValueTexture(crtShader, crtBloomTextureLoc, bloomTargets[1].texture);
+                    }
                 }
 #endif
                 DrawTexturePro(renderTarget.texture,
@@ -360,6 +512,10 @@ int main()
     unloadRenderTarget();
 #endif
 #if defined(RIDGEDASH_DESKTOP_RENDER)
+    unloadBloomTargets();
+    if (brightPassLoaded) {
+        UnloadShader(brightPassShader);
+    }
     if (crtLoaded) {
         UnloadShader(crtShader);
     }
