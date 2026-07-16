@@ -26,7 +26,7 @@ struct TerrainSample;
 
 class PickupEffects {
 public:
-    enum class Kind { Fuel, Coin, Flea, Rocket, Cactus, Snowman, GiantFlea, Helmet };
+    enum class Kind { Fuel, Coin, Flea, Rocket, Cactus, Snowman, GiantFlea, Helmet, Magnet };
 
     void clear();
     void reset();
@@ -149,6 +149,10 @@ public:
 
     // Coin-specific: create at an exact world position (no terrain sample needed).
     void createAt(RidgeDashGame& game, Vector2 worldPos);
+
+    // Magnet attraction: pull nearby coins toward a target point, collecting those
+    // that come within pickup distance.
+    void attractCoins(RidgeDashGame& game, Vector2 target, float range, float dt);
 
     // Override base forceSpawnAt — coin uses heightAt + createAt instead of sampleAt.
     void forceSpawnAt(RidgeDashGame& game, float x);
@@ -526,6 +530,63 @@ private:
     float _activeBoost = 1.0f;
 };
 
+class MagnetPickups : public PickupCollection<MagnetPickups> {
+public:
+    static constexpr float kGenerateAhead = game_config::kMagnetGenerateAhead;
+
+    void reset(RidgeDashGame& game);
+    void stream(RidgeDashGame& game, float targetX);
+    void update(RidgeDashGame& game, float dt);
+    void draw(const RidgeDashGame& game) const;
+    bool active() const;
+
+    // ── CRTP hooks / accessors ──────────────────────────────────────
+    struct Item {
+        b2BodyId bodyId = b2_nullBodyId;
+        b2ShapeId shapeId = b2_nullShapeId;
+        Vector2 basePos{};
+        Vector2 pos{};
+        float idleTime = 0.0f;
+        float idlePhase = 0.0f;
+        bool active = true;
+    };
+
+    std::vector<Item>& items()
+    {
+        return _items;
+    }
+    const std::vector<Item>& items() const
+    {
+        return _items;
+    }
+    float& nextX()
+    {
+        return _nextX;
+    }
+    const float& nextX() const
+    {
+        return _nextX;
+    }
+
+    Vector2 itemPos(const Item& it) const
+    {
+        return it.pos;
+    }
+    float itemTrimX(const Item& it) const
+    {
+        return it.basePos.x;
+    }
+    float pickupDistance() const;
+    void doCreate(RidgeDashGame& game, const TerrainSample& terrain);
+    bool doCollect(RidgeDashGame& game, Item& item);
+    void doClear();
+
+private:
+    std::vector<Item> _items;
+    float _nextX = 0.0f;
+    float _timer = 0.0f; // remaining magnet duration (0 = inactive)
+};
+
 class HelmetPickups : public PickupCollection<HelmetPickups> {
 public:
     static constexpr float kGenerateAhead = game_config::kHelmetGenerateAhead;
@@ -606,6 +667,7 @@ public:
     SnowmanPickups& snowman();
     GiantFleaPickups& giantFlea();
     HelmetPickups& helmet();
+    MagnetPickups& magnet();
     SquidPickups& squid();
 
     const PickupEffects& effects() const;
@@ -617,6 +679,7 @@ public:
     const SnowmanPickups& snowman() const;
     const GiantFleaPickups& giantFlea() const;
     const HelmetPickups& helmet() const;
+    const MagnetPickups& magnet() const;
     const SquidPickups& squid() const;
 
 private:
@@ -632,6 +695,7 @@ private:
         f(_snowman);
         f(_giantFlea);
         f(_helmet);
+        f(_magnet);
     }
     template <typename F>
     void forEachStandard(F&& f) const
@@ -644,6 +708,7 @@ private:
         f(_snowman);
         f(_giantFlea);
         f(_helmet);
+        f(_magnet);
     }
 
     PickupEffects _effects;
@@ -655,6 +720,7 @@ private:
     SnowmanPickups _snowman;
     GiantFleaPickups _giantFlea;
     HelmetPickups _helmet;
+    MagnetPickups _magnet;
     SquidPickups _squid;
 };
 

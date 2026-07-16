@@ -145,9 +145,10 @@ void HelmetPickups::draw(const RidgeDashGame& game) const
 
         const int ix = static_cast<int>(std::round(p.x));
         const int iy = static_cast<int>(std::round(p.y));
+        const float angle = std::sin(item.idleTime * 2.4f + item.idlePhase) * 5.0f;
         if (textureLoaded(game._sprites.helmet)) {
             drawSpriteCentered(
-                game._sprites.helmet, {static_cast<float>(ix), static_cast<float>(iy)}, 16.0f, 12.0f, 0.0f);
+                game._sprites.helmet, {static_cast<float>(ix), static_cast<float>(iy)}, 16.0f, 12.0f, angle);
             continue;
         }
 

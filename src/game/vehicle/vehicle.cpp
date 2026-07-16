@@ -558,10 +558,9 @@ void Vehicle::draw(const DrawContext& context) const
         chassis.y = std::round(chassis.y + kBodyVisualYOffset);
     }
 
-    const b2Vec2 headWorld =
-        interp ? b2Lerp(_headSnapshot.prevPos, _headSnapshot.curPos, alpha)
-               : (driverHeadValid ? b2Body_GetPosition(_driverHeadId)
-                                   : b2Body_GetWorldPoint(_chassisId, kDriverLocalPos));
+    const b2Vec2 headWorld = interp ? b2Lerp(_headSnapshot.prevPos, _headSnapshot.curPos, alpha)
+                                    : (driverHeadValid ? b2Body_GetPosition(_driverHeadId)
+                                                       : b2Body_GetWorldPoint(_chassisId, kDriverLocalPos));
     Vector2 head = vehicleWorldToScreen(headWorld, context.camera);
     if (interp) {
         head.y += kBodyVisualYOffset;
@@ -583,29 +582,29 @@ void Vehicle::draw(const DrawContext& context) const
         }
     } else {
         switch (expression.face) {
-        case DriverFace::Cried:
-            if (textureLoaded(context.textures.driverCried)) {
-                driverTexture = &context.textures.driverCried;
-            }
-            break;
-        case DriverFace::Shocked:
-            if (textureLoaded(context.textures.driverShocked)) {
-                driverTexture = &context.textures.driverShocked;
-            }
-            break;
-        case DriverFace::Scared:
-            if (textureLoaded(context.textures.driverScared)) {
-                driverTexture = &context.textures.driverScared;
-            }
-            break;
-        case DriverFace::Blink:
-            if (textureLoaded(context.textures.driverBlink)) {
-                driverTexture = &context.textures.driverBlink;
-            }
-            break;
-        case DriverFace::Normal:
-        default:
-            break;
+            case DriverFace::Cried:
+                if (textureLoaded(context.textures.driverCried)) {
+                    driverTexture = &context.textures.driverCried;
+                }
+                break;
+            case DriverFace::Shocked:
+                if (textureLoaded(context.textures.driverShocked)) {
+                    driverTexture = &context.textures.driverShocked;
+                }
+                break;
+            case DriverFace::Scared:
+                if (textureLoaded(context.textures.driverScared)) {
+                    driverTexture = &context.textures.driverScared;
+                }
+                break;
+            case DriverFace::Blink:
+                if (textureLoaded(context.textures.driverBlink)) {
+                    driverTexture = &context.textures.driverBlink;
+                }
+                break;
+            case DriverFace::Normal:
+            default:
+                break;
         }
     }
 
@@ -972,6 +971,11 @@ float RidgeDashGame::carDistance() const
 bool RidgeDashGame::helmetActive() const
 {
     return _helmetActive;
+}
+
+bool RidgeDashGame::magnetActive() const
+{
+    return _pickups.magnet().active();
 }
 
 void RidgeDashGame::drawDust() const

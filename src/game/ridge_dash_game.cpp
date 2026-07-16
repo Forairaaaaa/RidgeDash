@@ -64,6 +64,8 @@ void RidgeDashGame::loadSprites()
     _sprites.squidB = loadSpriteTexture("squid_b.png");
     _sprites.squidC = loadSpriteTexture("squid_c.png");
     _sprites.squidD = loadSpriteTexture("squid_d.png");
+    _sprites.magnet = loadSpriteTexture("magnet.png");
+    _sprites.magnetSmall = loadSpriteTexture("magnet_small.png");
     _environment.loadAssets();
 }
 
@@ -91,6 +93,8 @@ void RidgeDashGame::unloadSprites()
     unloadSpriteTexture(_sprites.squidB);
     unloadSpriteTexture(_sprites.squidC);
     unloadSpriteTexture(_sprites.squidD);
+    unloadSpriteTexture(_sprites.magnet);
+    unloadSpriteTexture(_sprites.magnetSmall);
     _environment.unloadAssets();
 }
 
@@ -263,6 +267,10 @@ void RidgeDashGame::update(float dt)
     updateGroundState();
     processInput(dt);
     _pickups.update(*this, dt);
+    if (_pickups.magnet().active() && carValid()) {
+        const b2Vec2 carPos = _vehicle.chassisPosition();
+        _pickups.coin().attractCoins(*this, {carPos.x, carPos.y}, game_config::kMagnetAttractRadius, dt);
+    }
     stepPhysics(dt);
     _helmetRescuedThisFrame = false;
     // Collect distance-based pickups before sensor events so a helmet

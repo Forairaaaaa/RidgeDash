@@ -44,6 +44,7 @@ void PickupSystem::update(RidgeDashGame& game, float dt)
     _snowman.update(game, dt);
     _giantFlea.update(game, dt);
     _helmet.update(dt);
+    _magnet.update(game, dt);
     _squid.update(dt);
 }
 
@@ -208,6 +209,16 @@ const HelmetPickups& PickupSystem::helmet() const
     return _helmet;
 }
 
+MagnetPickups& PickupSystem::magnet()
+{
+    return _magnet;
+}
+
+const MagnetPickups& PickupSystem::magnet() const
+{
+    return _magnet;
+}
+
 void RidgeDashGame::updatePickupOverlaps()
 {
     if (!carValid() || _runController.gameOver()) {
@@ -343,6 +354,10 @@ void PickupSystem::forceSpawnTestPickup(RidgeDashGame& game, const std::string& 
         {"helmet",
          [](PickupSystem& s, RidgeDashGame& g, float xx) {
              s._helmet.forceSpawnAt(g, xx);
+         }},
+        {"magnet",
+         [](PickupSystem& s, RidgeDashGame& g, float xx) {
+             s._magnet.forceSpawnAt(g, xx);
          }},
     };
     for (const auto& entry : kTable) {

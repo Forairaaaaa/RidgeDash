@@ -291,6 +291,31 @@ bool CoinPickups::doCollect(RidgeDashGame& game, Item& coin)
     return true;
 }
 
+void CoinPickups::attractCoins(RidgeDashGame& game, Vector2 target, float range, float dt)
+{
+    const float step = kMagnetAttractSpeed * dt;
+    for (auto& coin : _items) {
+        if (!coin.active)
+            continue;
+        const float dx = target.x - coin.pos.x;
+        const float dy = target.y - coin.pos.y;
+        const float dist = std::sqrt(dx * dx + dy * dy);
+        if (dist > range)
+            continue;
+
+        if (dist < step + kCoinPickupDistance) {
+            doCollect(game, coin);
+        } else {
+            const float t = step / dist;
+            coin.pos.x += dx * t;
+            coin.pos.y += dy * t;
+            if (b2Body_IsValid(coin.bodyId)) {
+                b2Body_SetTransform(coin.bodyId, {coin.pos.x, coin.pos.y}, b2MakeRot(0.0f));
+            }
+        }
+    }
+}
+
 void CoinPickups::draw(const RidgeDashGame& game) const
 {
     for (const Item& coin : _items) {

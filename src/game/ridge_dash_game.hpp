@@ -71,6 +71,7 @@ private:
     friend class SnowmanPickups;
     friend class GiantFleaPickups;
     friend class HelmetPickups;
+    friend class MagnetPickups;
 
     template <typename Derived>
     friend class PickupCollection;
@@ -98,6 +99,8 @@ private:
         Texture2D squidB{};
         Texture2D squidC{};
         Texture2D squidD{};
+        Texture2D magnet{};
+        Texture2D magnetSmall{};
     };
 
     void loadSprites();
@@ -132,6 +135,7 @@ private:
     bool carValid() const;
     float carDistance() const;
     bool helmetActive() const;
+    bool magnetActive() const;
     void spawnTestPickup();
 
     b2WorldId _worldId = b2_nullWorldId;
