@@ -96,7 +96,8 @@ void CactusPickups::stream(RidgeDashGame& game, float targetX)
         }
         if (game._pickups.fuel().activeNear(_nextX, 5.2f) || game._pickups.coin().activeNear(_nextX, 4.4f) ||
             game._pickups.flea().activeInRange(_nextX - 5.0f, _nextX + 5.0f) ||
-            game._pickups.rocket().activeNear(_nextX, 6.0f)) {
+            game._pickups.rocket().activeNear(_nextX, 6.0f) ||
+            game._pickups.magnet().activeNear(_nextX, 6.0f)) {
             _nextX += 6.6f;
             continue;
         }
