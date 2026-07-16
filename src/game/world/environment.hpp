@@ -26,11 +26,6 @@ public:
     void drawBackground(Vector2 camera, float distance) const;
     float dayAmount(float distance) const;
 
-    void drawAmbientSnow(Vector2 camera, float day, float alpha) const;
-    void drawAmbientSandWind(Vector2 camera, float day, float alpha) const;
-    void drawAmbientDust(Vector2 camera, float day, float alpha) const;
-    void drawAmbientMountain(Vector2 camera, float day, float alpha) const;
-
 private:
     Texture2D _sun{};
     Texture2D _sunBlink{};

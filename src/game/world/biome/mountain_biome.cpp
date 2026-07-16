@@ -162,4 +162,22 @@ void MountainRenderer::drawHorizon(Vector2 camera, float day, float alpha) const
                          kHeight);
 }
 
+void MountainRenderer::drawAmbientParticles(Vector2 camera, float day, float alpha, uint32_t seed, float time) const
+{
+    // Green leaf/grass specks mixed with firefly-like glowing dots.
+    // Firefly glow is always visible (day and night), just shifts more yellow after dark.
+
+    // Far layer — grass/leaf bits drifting
+    const Color leafColor = mixColor(Color{65, 88, 42, 80}, Color{95, 225, 75, 175}, day);
+    biome_detail::drawLoopingParticles(
+        seed ^ 0x6666U, time, camera, 0.08f, 7.0f, 10.0f, 0.5f, 18, 1, leafColor, alpha * 0.55f);
+
+    // Near layer — firefly glow dots: flea-bright green, extra luminous at night
+    const Color fireflyNight = Color{210, 245, 55, 250};
+    const Color fireflyDay = Color{110, 242, 110, 220};
+    const Color fireflyColor = mixColor(fireflyNight, fireflyDay, day);
+    biome_detail::drawLoopingParticles(
+        seed ^ 0x7777U, time, camera, 0.18f, 4.0f, 16.0f, 0.65f, 18, 2, fireflyColor, alpha);
+}
+
 } // namespace ridge_dash

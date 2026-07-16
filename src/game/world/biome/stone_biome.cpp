@@ -172,4 +172,14 @@ void StoneRenderer::drawHorizon(Vector2 camera, float day, float alpha) const
                          0.22f);
 }
 
+void StoneRenderer::drawAmbientParticles(Vector2 camera, float day, float alpha, uint32_t seed, float time) const
+{
+    const Color dustFar = mixColor(Color{150, 145, 135, 110}, Color{240, 232, 215, 180}, day);
+    const Color dustNear = mixColor(Color{155, 148, 138, 130}, Color{245, 238, 220, 200}, day);
+
+    biome_detail::drawLoopingParticles(
+        seed ^ 0x5555U, time, camera, 0.10f, 3.0f, 6.0f, 0.35f, 26, 1, dustFar, alpha * 0.7f);
+    biome_detail::drawLoopingParticles(seed ^ 0x5556U, time, camera, 0.20f, 5.0f, 10.0f, 0.5f, 18, 2, dustNear, alpha);
+}
+
 } // namespace ridge_dash

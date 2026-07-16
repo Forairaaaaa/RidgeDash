@@ -161,4 +161,16 @@ void DesertRenderer::drawHorizon(Vector2 camera, float day, float alpha) const
                          withAlpha(mixColor(Color{77, 51, 39, 255}, Color{202, 129, 63, 255}, day), alpha));
 }
 
+void DesertRenderer::drawAmbientParticles(Vector2 camera, float day, float alpha, uint32_t seed, float time) const
+{
+    const Color sandFar = mixColor(Color{150, 110, 68, 150}, Color{224, 178, 108, 170}, day);
+    const Color sandNear = mixColor(Color{168, 124, 74, 190}, Color{240, 196, 120, 210}, day);
+
+    // Sand barely falls — fallSpeed repurposed as horizontal drift speed.
+    // Low swayFreq + high swayAmp gives wind-blown lateral trails.
+    biome_detail::drawLoopingParticles(
+        seed ^ 0x3333U, time, camera, 0.12f, 4.0f, 30.0f, 0.35f, 26, 1, sandFar, alpha * 0.6f);
+    biome_detail::drawLoopingParticles(seed ^ 0x4444U, time, camera, 0.25f, 6.0f, 46.0f, 0.5f, 18, 2, sandNear, alpha);
+}
+
 } // namespace ridge_dash

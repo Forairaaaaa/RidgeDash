@@ -168,4 +168,16 @@ void SnowRenderer::drawHorizon(Vector2 camera, float day, float alpha) const
                          withAlpha(mixColor(Color{66, 88, 101, 255}, Color{156, 194, 209, 255}, day), alpha));
 }
 
+void SnowRenderer::drawAmbientParticles(Vector2 camera, float day, float alpha, uint32_t seed, float time) const
+{
+    const Color snowFar = mixColor(Color{200, 220, 232, 210}, Color{255, 255, 255, 235}, day);
+    const Color snowNear = mixColor(Color{215, 232, 240, 230}, Color{255, 255, 255, 255}, day);
+
+    // Far layer: slow, small, sparse
+    biome_detail::drawLoopingParticles(
+        seed ^ 0x1111U, time, camera, 0.10f, 14.0f, 6.0f, 0.7f, 32, 1, snowFar, alpha * 0.7f);
+    // Near layer: fast, larger, denser
+    biome_detail::drawLoopingParticles(seed ^ 0x2222U, time, camera, 0.22f, 26.0f, 10.0f, 1.1f, 22, 2, snowNear, alpha);
+}
+
 } // namespace ridge_dash
