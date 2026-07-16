@@ -12,6 +12,7 @@
 
 #include "game/game_config.hpp"
 #include "game/ridge_dash_game.hpp"
+#include "game/pickups/pickup_base_impl.hpp"
 #include "game/render_helpers.hpp"
 
 #include <algorithm>
