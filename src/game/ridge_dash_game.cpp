@@ -385,6 +385,7 @@ void RidgeDashGame::update(float dt)
 #if defined(RIDGEDASH_DESKTOP_RENDER)
         beginResetDissolve();
 #endif
+        playSfx(AudioSystem::Sfx::Reset);
         reset();
         return;
     }
@@ -603,8 +604,8 @@ void RidgeDashGame::requestGameExit()
         return;
     }
     submitRunRecord();
+    playSfx(AudioSystem::Sfx::Shutdown);
 #if defined(RIDGEDASH_DESKTOP_RENDER)
-    playSfx(AudioSystem::Sfx::Fuel);
     beginExitTransition();
 #else
     _quitRequested = true;

@@ -62,7 +62,29 @@ void main()
     float tearSeed = hash11(row * 12.9898 + noiseFrame * 0.71);
     float tearActive = step(0.86, tearSeed) * boundaryRaw;
     float tearOffset = (hash11(row * 3.1 + noiseFrame * 1.3) - 0.5) * 0.040;
-    vec2 sampleUv = vec2(fract(signalUv.x + tearOffset * tearActive), signalUv.y);
+
+    // One or two wider sync-loss bands jump as coherent chunks for roughly two
+    // display frames. Their native-pixel height and restrained displacement are
+    // closer to analog horizontal lock loss than a dense digital glitch stack.
+    float tearFrame = floor(uTime * 30.0);
+    float bandCenterA = hash11(tearFrame * 1.91 + 17.0) * uNativeResolution.y;
+    float bandCenterB = hash11(tearFrame * 2.47 + 83.0) * uNativeResolution.y;
+    float bandHalfHeightA = mix(1.5, 4.0, hash11(tearFrame * 3.17 + 5.0));
+    float bandHalfHeightB = mix(1.5, 3.5, hash11(tearFrame * 4.03 + 29.0));
+    float bandA = 1.0 - smoothstep(bandHalfHeightA,
+                                   bandHalfHeightA + 1.0,
+                                   abs(pixelCoord.y - bandCenterA));
+    float bandB = (1.0 - smoothstep(bandHalfHeightB,
+                                    bandHalfHeightB + 1.0,
+                                    abs(pixelCoord.y - bandCenterB))) *
+                  step(0.48, hash11(tearFrame * 5.21 + 47.0));
+    float largeBandMask = clamp(bandA + bandB, 0.0, 1.0) * signalCross;
+    float bandOffsetA = (hash11(tearFrame * 6.13 + 11.0) < 0.5 ? -1.0 : 1.0) *
+                        mix(0.020, 0.040, hash11(tearFrame * 7.07 + 31.0));
+    float bandOffsetB = (hash11(tearFrame * 7.91 + 59.0) < 0.5 ? -1.0 : 1.0) *
+                        mix(0.018, 0.035, hash11(tearFrame * 8.23 + 71.0));
+    float largeTearOffset = (bandA * bandOffsetA + bandB * bandOffsetB) * signalCross;
+    vec2 sampleUv = vec2(fract(signalUv.x + tearOffset * tearActive + largeTearOffset), signalUv.y);
 
     // During the short hand-off window, whole scanlines choose between the old
     // and new channel. This breaks up the readable per-pixel dissolve front and
@@ -70,8 +92,17 @@ void main()
     float rowChannel = step(hash11(row * 5.73 + noiseFrame * 0.43), uProgress);
     mixAmount = mix(mixAmount, rowChannel, signalCross * 0.48);
 
-    vec3 oldColor = texture(texture0, sampleUv).rgb;
-    vec3 newColor = texture(liveTexture, sampleUv).rgb;
+    // Sub-pixel R/B separation exists only inside the large tear bands. It is
+    // deliberately below one native pixel so it reads as a faint analog ghost.
+    float chromaOffset = (0.65 / uNativeResolution.x) * largeBandMask;
+    vec2 redUv = vec2(fract(sampleUv.x + chromaOffset), sampleUv.y);
+    vec2 blueUv = vec2(fract(sampleUv.x - chromaOffset), sampleUv.y);
+    vec3 oldColor = vec3(texture(texture0, redUv).r,
+                         texture(texture0, sampleUv).g,
+                         texture(texture0, blueUv).b);
+    vec3 newColor = vec3(texture(liveTexture, redUv).r,
+                         texture(liveTexture, sampleUv).g,
+                         texture(liveTexture, blueUv).b);
     vec3 color = mix(oldColor, newColor, mixAmount);
 
     // Posterized pepper-and-salt static: sparse white/color sparks and even

@@ -162,6 +162,8 @@ void AudioSystem::load()
     loadSfxGroup(Sfx::CarLanding, {"car_landing_1.wav", "car_landing_2.wav", "car_landing_3.wav"});
     loadSfxGroup(Sfx::CarHit, {"car_hit_1.wav", "car_hit_2.wav", "car_hit_3.wav"});
     loadSfxGroup(Sfx::CarFlip, {"car_flip.wav"});
+    loadSfxGroup(Sfx::Reset, {"reset.wav"});
+    loadSfxGroup(Sfx::Shutdown, {"shutdown.wav"});
     loadSfxGroup(Sfx::UiSelect, {"ui_select.wav"});
 
     // Discover available BGM variants by scanning music/calm/ and music/intense/.

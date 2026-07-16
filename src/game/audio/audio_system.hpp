@@ -20,9 +20,8 @@
 
 namespace ridge_dash {
 
-// Owns game audio. Real playback is compiled only when RIDGEDASH_ENABLE_AUDIO is
-// defined (Desktop); on DRM/FBDEV every method is a no-op so the rest of the game
-// can call it unconditionally.
+// Owns game audio. Real playback is compiled when RIDGEDASH_ENABLE_AUDIO is
+// available (Desktop/Web/DRM); FBDEV uses no-op methods.
 class AudioSystem {
 public:
     // One-shot event sounds. Groups with several variants pick one at random.
@@ -37,6 +36,8 @@ public:
         CarLanding,   // car_landing_1/2/3  (hard, high-fall touchdown)
         CarHit,       // car_hit_1/2/3      (light landing / small bump)
         CarFlip,      // car_flip           (each mid-air flip)
+        Reset,        // reset               (CRT channel-switch transition)
+        Shutdown,     // shutdown            (power-off exit transition)
         UiSelect,     // ui_select          (menu navigation / confirm)
         Count
     };
