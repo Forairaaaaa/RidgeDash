@@ -335,9 +335,12 @@ void drawAmbientSandWindImpl(uint32_t seed, float time, Vector2 camera, float al
 
 void drawAmbientDustImpl(uint32_t seed, float time, Vector2 camera, float alpha, float day)
 {
-    // Stone floating dust — sparse, slow, subtle. Not meant to steal focus.
-    const Color dust = mixColor(Color{120, 116, 108, 90}, Color{200, 196, 186, 110}, day);
-    drawLoopingParticles(seed ^ 0x5555U, time, camera, 0.06f, 3.0f, 4.0f, 0.4f, 18, 1, dust, alpha * 0.5f);
+    // Stone floating dust — same density as desert sand, but calmer motion.
+    const Color dustFar = mixColor(Color{150, 145, 135, 110}, Color{240, 232, 215, 180}, day);
+    const Color dustNear = mixColor(Color{155, 148, 138, 130}, Color{245, 238, 220, 200}, day);
+
+    drawLoopingParticles(seed ^ 0x5555U, time, camera, 0.10f, 3.0f, 6.0f, 0.35f, 26, 1, dustFar, alpha * 0.7f);
+    drawLoopingParticles(seed ^ 0x5556U, time, camera, 0.20f, 5.0f, 10.0f, 0.5f, 18, 2, dustNear, alpha);
 }
 
 void drawAmbientMountainImpl(uint32_t seed, float time, Vector2 camera, float alpha, float day)
