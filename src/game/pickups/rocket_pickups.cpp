@@ -21,15 +21,6 @@
 namespace ridge_dash {
 namespace {
 
-constexpr float kPi = 3.14159265358979323846f;
-
-bool nearPoint(Vector2 a, Vector2 b, float distance)
-{
-    const float dx = a.x - b.x;
-    const float dy = a.y - b.y;
-    return dx * dx + dy * dy <= distance * distance;
-}
-
 b2Vec2 rotateVec(b2Rot rotation, b2Vec2 v)
 {
     return b2RotateVector(rotation, v);
@@ -44,11 +35,9 @@ float hash01(uint32_t value)
 
 using namespace game_config;
 
-void RocketPickups::clear()
+void RocketPickups::doClear()
 {
-    _items.clear();
     _trail.clear();
-    _nextX = 0.0f;
     _flightTimer = 0.0f;
     _trailRemainder = 0.0f;
     _trailSerial = 0;
@@ -79,18 +68,18 @@ void RocketPickups::stream(RidgeDashGame& game, float targetX)
             continue;
         }
 
-        create(game, terrain);
+        doCreate(game, terrain);
         _nextX += gapDist(game._rng);
     }
 }
 
-void RocketPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
+void RocketPickups::doCreate(RidgeDashGame& game, const TerrainSample& terrain)
 {
     if (!b2World_IsValid(game._worldId)) {
         return;
     }
 
-    std::uniform_real_distribution<float> phaseDist(0.0f, kPi * 2.0f);
+    std::uniform_real_distribution<float> phaseDist(0.0f, 6.2831855f);
 
     _items.push_back(Item{});
     Item& rocket = _items.back();
@@ -98,34 +87,10 @@ void RocketPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
     rocket.pos = rocket.basePos;
     rocket.idlePhase = phaseDist(game._rng);
 
-    b2BodyDef bodyDef = b2DefaultBodyDef();
-    bodyDef.type = b2_staticBody;
-    bodyDef.position = {rocket.pos.x, rocket.pos.y};
-    rocket.bodyId = b2CreateBody(game._worldId, &bodyDef);
-
-    b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.isSensor = true;
-    shapeDef.enableSensorEvents = true;
-    b2Circle circle = {{0.0f, 0.0f}, kRocketRadius};
-    rocket.shapeId = b2CreateCircleShape(rocket.bodyId, &shapeDef, &circle);
+    createSensorBody(game, rocket.pos, kRocketRadius, rocket.bodyId, rocket.shapeId);
 }
 
-void RocketPickups::trim(float minX)
-{
-    auto it = _items.begin();
-    while (it != _items.end()) {
-        if (it->active && it->basePos.x >= minX) {
-            ++it;
-            continue;
-        }
-        if (b2Body_IsValid(it->bodyId)) {
-            b2DestroyBody(it->bodyId);
-        }
-        it = _items.erase(it);
-    }
-}
-
-bool RocketPickups::collect(RidgeDashGame& game, Item& rocket)
+bool RocketPickups::doCollect(RidgeDashGame& game, Item& rocket)
 {
     if (!rocket.active || _flightActive || !game.carValid()) {
         return false;
@@ -148,6 +113,11 @@ bool RocketPickups::collect(RidgeDashGame& game, Item& rocket)
     game._vehicle.applyChassisAngularImpulse(-0.18f);
     game.playSfx(AudioSystem::Sfx::Rocket);
     return true;
+}
+
+float RocketPickups::pickupDistance() const
+{
+    return kRocketPickupDistance;
 }
 
 void RocketPickups::spawnTrail(RidgeDashGame& game, b2Vec2 tailPos, b2Vec2 carVelocity)
@@ -234,46 +204,6 @@ void RocketPickups::applyStepForces(RidgeDashGame& game)
     game._vehicle.applyChassisTorque(-2.0f * throttle);
 }
 
-bool RocketPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
-{
-    if (!game._vehicle.shapeBelongsToVehicle(otherShape)) {
-        return false;
-    }
-    for (Item& rocket : _items) {
-        if (rocket.active && b2Shape_IsValid(rocket.shapeId) && B2_ID_EQUALS(rocket.shapeId, pickupShape)) {
-            return collect(game, rocket);
-        }
-    }
-    return false;
-}
-
-bool RocketPickups::collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus)
-{
-    bool collected = false;
-    for (Item& rocket : _items) {
-        if (!rocket.active) {
-            continue;
-        }
-        for (int i = 0; i < count; ++i) {
-            if (nearPoint(points[i], rocket.pos, kRocketPickupDistance + speedBonus)) {
-                collected = collect(game, rocket) || collected;
-                break;
-            }
-        }
-    }
-    return collected;
-}
-
-bool RocketPickups::activeNear(float x, float distance) const
-{
-    for (const Item& rocket : _items) {
-        if (rocket.active && std::abs(rocket.basePos.x - x) <= distance) {
-            return true;
-        }
-    }
-    return false;
-}
-
 void RocketPickups::draw(const RidgeDashGame& game) const
 {
     const Color trailColors[] = {
@@ -342,12 +272,6 @@ void RocketPickups::draw(const RidgeDashGame& game) const
                              Color{255, 87, 87, 255});
         }
     }
-}
-
-void RocketPickups::forceSpawnAt(RidgeDashGame& game, float x)
-{
-    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
-    create(game, terrain);
 }
 
 } // namespace ridge_dash

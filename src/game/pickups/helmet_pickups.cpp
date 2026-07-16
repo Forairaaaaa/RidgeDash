@@ -19,26 +19,17 @@
 #include <random>
 
 namespace ridge_dash {
-namespace {
-
-constexpr float kPi = 3.14159265358979323846f;
-
-bool nearPoint(Vector2 a, Vector2 b, float distance)
-{
-    const float dx = a.x - b.x;
-    const float dy = a.y - b.y;
-    return dx * dx + dy * dy <= distance * distance;
-}
-
-} // namespace
 
 using namespace game_config;
 
-void HelmetPickups::clear()
+// ── CRTP hook accessors ──────────────────────────────────────────────────
+
+float HelmetPickups::pickupDistance() const
 {
-    _items.clear();
-    _nextX = 0.0f;
+    return kHelmetPickupDistance;
 }
+
+// ── Lifecycle ────────────────────────────────────────────────────────────
 
 void HelmetPickups::reset(RidgeDashGame& game)
 {
@@ -49,6 +40,8 @@ void HelmetPickups::reset(RidgeDashGame& game)
     _nextX = 60.0f + gapDist(game._rng) * 0.22f;
     stream(game, game._startX + kHelmetGenerateAhead);
 }
+
+// ── Streaming ────────────────────────────────────────────────────────────
 
 void HelmetPickups::stream(RidgeDashGame& game, float targetX)
 {
@@ -75,17 +68,16 @@ void HelmetPickups::stream(RidgeDashGame& game, float targetX)
             continue;
         }
 
-        create(game, terrain);
+        doCreate(game, terrain);
         _nextX += gapDist(game._rng);
     }
 }
 
-void HelmetPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
-{
-    if (!b2World_IsValid(game._worldId)) {
-        return;
-    }
+// ── Creation / Collection (CRTP hooks) ───────────────────────────────────
 
+void HelmetPickups::doCreate(RidgeDashGame& game, const TerrainSample& terrain)
+{
+    constexpr float kPi = 3.14159265358979323846f;
     std::uniform_real_distribution<float> phaseDist(0.0f, kPi * 2.0f);
 
     _items.push_back(Item{});
@@ -95,48 +87,10 @@ void HelmetPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
     helmet.pos = helmet.basePos;
     helmet.idlePhase = phaseDist(game._rng);
 
-    b2BodyDef bodyDef = b2DefaultBodyDef();
-    bodyDef.type = b2_staticBody;
-    bodyDef.position = {helmet.pos.x, helmet.pos.y};
-    helmet.bodyId = b2CreateBody(game._worldId, &bodyDef);
-
-    b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.isSensor = true;
-    shapeDef.enableSensorEvents = true;
-    b2Circle circle = {{0.0f, 0.0f}, kHelmetRadius};
-    helmet.shapeId = b2CreateCircleShape(helmet.bodyId, &shapeDef, &circle);
+    createSensorBody(game, helmet.pos, kHelmetRadius, helmet.bodyId, helmet.shapeId);
 }
 
-void HelmetPickups::trim(float minX)
-{
-    auto it = _items.begin();
-    while (it != _items.end()) {
-        if (it->active && it->basePos.x >= minX) {
-            ++it;
-            continue;
-        }
-        if (b2Body_IsValid(it->bodyId)) {
-            b2DestroyBody(it->bodyId);
-        }
-        it = _items.erase(it);
-    }
-}
-
-void HelmetPickups::update(float dt)
-{
-    for (Item& helmet : _items) {
-        if (!helmet.active) {
-            continue;
-        }
-        helmet.idleTime += dt;
-        helmet.pos = {helmet.basePos.x, helmet.basePos.y + std::sin(helmet.idleTime * 3.2f + helmet.idlePhase) * 0.18f};
-        if (b2Body_IsValid(helmet.bodyId)) {
-            b2Body_SetTransform(helmet.bodyId, {helmet.pos.x, helmet.pos.y}, b2MakeRot(0.0f));
-        }
-    }
-}
-
-bool HelmetPickups::collect(RidgeDashGame& game, Item& item)
+bool HelmetPickups::doCollect(RidgeDashGame& game, Item& item)
 {
     if (!item.active || !game.carValid()) {
         return false;
@@ -160,45 +114,23 @@ bool HelmetPickups::collect(RidgeDashGame& game, Item& item)
     return true;
 }
 
-bool HelmetPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
-{
-    if (!game._vehicle.shapeBelongsToVehicle(otherShape)) {
-        return false;
-    }
-    for (Item& item : _items) {
-        if (item.active && b2Shape_IsValid(item.shapeId) && B2_ID_EQUALS(item.shapeId, pickupShape)) {
-            return collect(game, item);
-        }
-    }
-    return false;
-}
+// ── Per-frame update ─────────────────────────────────────────────────────
 
-bool HelmetPickups::collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus)
+void HelmetPickups::update(float dt)
 {
-    bool collected = false;
-    for (Item& item : _items) {
-        if (!item.active) {
+    for (Item& helmet : _items) {
+        if (!helmet.active) {
             continue;
         }
-        for (int i = 0; i < count; ++i) {
-            if (nearPoint(points[i], item.pos, kHelmetPickupDistance + speedBonus)) {
-                collected = collect(game, item) || collected;
-                break;
-            }
+        helmet.idleTime += dt;
+        helmet.pos = {helmet.basePos.x, helmet.basePos.y + std::sin(helmet.idleTime * 3.2f + helmet.idlePhase) * 0.18f};
+        if (b2Body_IsValid(helmet.bodyId)) {
+            b2Body_SetTransform(helmet.bodyId, {helmet.pos.x, helmet.pos.y}, b2MakeRot(0.0f));
         }
     }
-    return collected;
 }
 
-bool HelmetPickups::activeNear(float x, float distance) const
-{
-    for (const Item& item : _items) {
-        if (item.active && std::abs(item.basePos.x - x) <= distance) {
-            return true;
-        }
-    }
-    return false;
-}
+// ── Drawing ──────────────────────────────────────────────────────────────
 
 void HelmetPickups::draw(const RidgeDashGame& game) const
 {
@@ -225,12 +157,6 @@ void HelmetPickups::draw(const RidgeDashGame& game) const
         DrawRectangle(ix - 7, iy + 3, 14, 2, Color{140, 140, 140, 255}); // brim
         DrawRectangle(ix - 3, iy - 3, 2, 2, Color{255, 220, 80, 255});   // highlight
     }
-}
-
-void HelmetPickups::forceSpawnAt(RidgeDashGame& game, float x)
-{
-    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
-    create(game, terrain);
 }
 
 } // namespace ridge_dash

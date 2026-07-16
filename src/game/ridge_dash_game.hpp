@@ -62,6 +62,7 @@ public:
 private:
     friend class PickupSystem;
     friend class PickupEffects;
+    friend class SquidPickups;
     friend class FuelPickups;
     friend class CoinPickups;
     friend class FleaPickups;
@@ -70,7 +71,9 @@ private:
     friend class SnowmanPickups;
     friend class GiantFleaPickups;
     friend class HelmetPickups;
-    friend class SquidPickups;
+
+    template <typename Derived>
+    friend class PickupCollection;
 
     struct SpriteAssets {
         Texture2D carBodyDay{};

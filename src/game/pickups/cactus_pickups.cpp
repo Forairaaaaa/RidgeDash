@@ -21,13 +21,6 @@
 namespace ridge_dash {
 namespace {
 
-bool nearPoint(Vector2 a, Vector2 b, float distance)
-{
-    const float dx = a.x - b.x;
-    const float dy = a.y - b.y;
-    return dx * dx + dy * dy <= distance * distance;
-}
-
 float hash01(uint32_t value)
 {
     return static_cast<float>(value & 0xffU) / 255.0f;
@@ -62,12 +55,22 @@ void drawPixelCactus(int ix, int baseY, int bend, Color dark, Color body, Color 
 
 using namespace game_config;
 
-void CactusPickups::clear()
+void CactusPickups::doClear()
 {
-    _items.clear();
     _chips.clear();
-    _nextX = 0.0f;
     _chipSerial = 0;
+}
+
+void CactusPickups::doTrimExtra(float minX)
+{
+    auto chipIt = _chips.begin();
+    while (chipIt != _chips.end()) {
+        if (chipIt->pos.x >= minX) {
+            ++chipIt;
+        } else {
+            chipIt = _chips.erase(chipIt);
+        }
+    }
 }
 
 void CactusPickups::reset(RidgeDashGame& game)
@@ -98,12 +101,12 @@ void CactusPickups::stream(RidgeDashGame& game, float targetX)
             continue;
         }
 
-        create(game, terrain);
+        doCreate(game, terrain);
         _nextX += gapDist(game._rng);
     }
 }
 
-void CactusPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
+void CactusPickups::doCreate(RidgeDashGame& game, const TerrainSample& terrain)
 {
     if (!b2World_IsValid(game._worldId)) {
         return;
@@ -113,40 +116,7 @@ void CactusPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
     Item& cactus = _items.back();
     cactus.pos = {terrain.x, terrain.y - 0.93f};
 
-    b2BodyDef bodyDef = b2DefaultBodyDef();
-    bodyDef.type = b2_staticBody;
-    bodyDef.position = {cactus.pos.x, cactus.pos.y};
-    cactus.bodyId = b2CreateBody(game._worldId, &bodyDef);
-
-    b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.isSensor = true;
-    shapeDef.enableSensorEvents = true;
-    b2Circle circle = {{0.0f, 0.0f}, kCactusRadius};
-    cactus.shapeId = b2CreateCircleShape(cactus.bodyId, &shapeDef, &circle);
-}
-
-void CactusPickups::trim(float minX)
-{
-    auto itemIt = _items.begin();
-    while (itemIt != _items.end()) {
-        if (itemIt->active && itemIt->pos.x >= minX) {
-            ++itemIt;
-            continue;
-        }
-        if (b2Body_IsValid(itemIt->bodyId)) {
-            b2DestroyBody(itemIt->bodyId);
-        }
-        itemIt = _items.erase(itemIt);
-    }
-
-    auto chipIt = _chips.begin();
-    while (chipIt != _chips.end()) {
-        if (chipIt->pos.x >= minX) {
-            ++chipIt;
-        } else {
-            chipIt = _chips.erase(chipIt);
-        }
-    }
+    createSensorBody(game, cactus.pos, kCactusRadius, cactus.bodyId, cactus.shapeId);
 }
 
 void CactusPickups::spawnChips(RidgeDashGame& game, Vector2 pos, float direction)
@@ -167,7 +137,7 @@ void CactusPickups::spawnChips(RidgeDashGame& game, Vector2 pos, float direction
     }
 }
 
-bool CactusPickups::hit(RidgeDashGame& game, Item& cactus)
+bool CactusPickups::doCollect(RidgeDashGame& game, Item& cactus)
 {
     if (!cactus.active || cactus.cooldown > 0.0f || !game.carValid()) {
         return false;
@@ -185,6 +155,11 @@ bool CactusPickups::hit(RidgeDashGame& game, Item& cactus)
     game._pickups.effects().spawn({cactus.pos.x, cactus.pos.y - 0.22f}, PickupEffects::Kind::Cactus, game._runSeed);
     game.playSfx(AudioSystem::Sfx::Cactus);
     return true;
+}
+
+float CactusPickups::pickupDistance() const
+{
+    return kCactusPickupDistance;
 }
 
 void CactusPickups::update(float dt)
@@ -213,46 +188,6 @@ void CactusPickups::update(float dt)
             ++chipIt;
         }
     }
-}
-
-bool CactusPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
-{
-    if (!game._vehicle.shapeBelongsToVehicle(otherShape)) {
-        return false;
-    }
-    for (Item& cactus : _items) {
-        if (cactus.active && b2Shape_IsValid(cactus.shapeId) && B2_ID_EQUALS(cactus.shapeId, pickupShape)) {
-            return hit(game, cactus);
-        }
-    }
-    return false;
-}
-
-bool CactusPickups::collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus)
-{
-    bool touched = false;
-    for (Item& cactus : _items) {
-        if (!cactus.active) {
-            continue;
-        }
-        for (int i = 0; i < count; ++i) {
-            if (nearPoint(points[i], cactus.pos, kCactusPickupDistance + speedBonus)) {
-                touched = hit(game, cactus) || touched;
-                break;
-            }
-        }
-    }
-    return touched;
-}
-
-bool CactusPickups::activeNear(float x, float distance) const
-{
-    for (const Item& cactus : _items) {
-        if (cactus.active && std::abs(cactus.pos.x - x) <= distance) {
-            return true;
-        }
-    }
-    return false;
 }
 
 void CactusPickups::draw(const RidgeDashGame& game) const
@@ -317,12 +252,6 @@ void CactusPickups::draw(const RidgeDashGame& game) const
                         Color{116, 230, 113, 255},
                         Color{239, 222, 151, 255});
     }
-}
-
-void CactusPickups::forceSpawnAt(RidgeDashGame& game, float x)
-{
-    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
-    create(game, terrain);
 }
 
 } // namespace ridge_dash

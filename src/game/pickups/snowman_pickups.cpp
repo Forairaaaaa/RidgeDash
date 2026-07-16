@@ -21,21 +21,12 @@
 namespace ridge_dash {
 namespace {
 
-bool nearPoint(Vector2 a, Vector2 b, float distance)
-{
-    const float dx = a.x - b.x;
-    const float dy = a.y - b.y;
-    return dx * dx + dy * dy <= distance * distance;
-}
-
 } // namespace
 
 using namespace game_config;
 
-void SnowmanPickups::clear()
+void SnowmanPickups::doClear()
 {
-    _items.clear();
-    _nextX = 0.0f;
     _boostTimer = 0.0f;
     _activeBoost = 1.0f;
 }
@@ -68,12 +59,12 @@ void SnowmanPickups::stream(RidgeDashGame& game, float targetX)
             continue;
         }
 
-        create(game, terrain);
+        doCreate(game, terrain);
         _nextX += gapDist(game._rng);
     }
 }
 
-void SnowmanPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
+void SnowmanPickups::doCreate(RidgeDashGame& game, const TerrainSample& terrain)
 {
     if (!b2World_IsValid(game._worldId)) {
         return;
@@ -86,31 +77,7 @@ void SnowmanPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
     snowman.pos = {terrain.x, terrain.y - 0.78f};
     snowman.boost = boostDist(game._rng);
 
-    b2BodyDef bodyDef = b2DefaultBodyDef();
-    bodyDef.type = b2_staticBody;
-    bodyDef.position = {snowman.pos.x, snowman.pos.y};
-    snowman.bodyId = b2CreateBody(game._worldId, &bodyDef);
-
-    b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.isSensor = true;
-    shapeDef.enableSensorEvents = true;
-    b2Circle circle = {{0.0f, 0.0f}, kSnowmanRadius};
-    snowman.shapeId = b2CreateCircleShape(snowman.bodyId, &shapeDef, &circle);
-}
-
-void SnowmanPickups::trim(float minX)
-{
-    auto it = _items.begin();
-    while (it != _items.end()) {
-        if (it->active && it->pos.x >= minX) {
-            ++it;
-            continue;
-        }
-        if (b2Body_IsValid(it->bodyId)) {
-            b2DestroyBody(it->bodyId);
-        }
-        it = _items.erase(it);
-    }
+    createSensorBody(game, snowman.pos, kSnowmanRadius, snowman.bodyId, snowman.shapeId);
 }
 
 void SnowmanPickups::applyBoost(RidgeDashGame& game)
@@ -128,7 +95,7 @@ void SnowmanPickups::applyBoost(RidgeDashGame& game)
     game._vehicle.applyChassisTorque(-0.4f * throttle * _activeBoost);
 }
 
-bool SnowmanPickups::collect(RidgeDashGame& game, Item& snowman)
+bool SnowmanPickups::doCollect(RidgeDashGame& game, Item& snowman)
 {
     if (!snowman.active || !game.carValid()) {
         return false;
@@ -150,6 +117,11 @@ bool SnowmanPickups::collect(RidgeDashGame& game, Item& snowman)
     return true;
 }
 
+float SnowmanPickups::pickupDistance() const
+{
+    return kSnowmanPickupDistance;
+}
+
 void SnowmanPickups::update(RidgeDashGame& game, float dt)
 {
     (void)game;
@@ -164,46 +136,6 @@ void SnowmanPickups::applyStepForces(RidgeDashGame& game)
         return;
     }
     applyBoost(game);
-}
-
-bool SnowmanPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
-{
-    if (!game._vehicle.shapeBelongsToVehicle(otherShape)) {
-        return false;
-    }
-    for (Item& snowman : _items) {
-        if (snowman.active && b2Shape_IsValid(snowman.shapeId) && B2_ID_EQUALS(snowman.shapeId, pickupShape)) {
-            return collect(game, snowman);
-        }
-    }
-    return false;
-}
-
-bool SnowmanPickups::collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus)
-{
-    bool collected = false;
-    for (Item& snowman : _items) {
-        if (!snowman.active) {
-            continue;
-        }
-        for (int i = 0; i < count; ++i) {
-            if (nearPoint(points[i], snowman.pos, kSnowmanPickupDistance + speedBonus)) {
-                collected = collect(game, snowman) || collected;
-                break;
-            }
-        }
-    }
-    return collected;
-}
-
-bool SnowmanPickups::activeNear(float x, float distance) const
-{
-    for (const Item& snowman : _items) {
-        if (snowman.active && std::abs(snowman.pos.x - x) <= distance) {
-            return true;
-        }
-    }
-    return false;
 }
 
 void SnowmanPickups::draw(const RidgeDashGame& game) const
@@ -233,12 +165,6 @@ void SnowmanPickups::draw(const RidgeDashGame& game) const
         DrawRectangle(ix, baseY - 16, 4, 1, Color{240, 114, 65, 255});
         DrawRectangle(ix - 8, baseY - 4, 16, 3, Color{179, 210, 225, 255});
     }
-}
-
-void SnowmanPickups::forceSpawnAt(RidgeDashGame& game, float x)
-{
-    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
-    create(game, terrain);
 }
 
 } // namespace ridge_dash

@@ -21,13 +21,6 @@
 namespace ridge_dash {
 namespace {
 
-bool nearPoint(Vector2 a, Vector2 b, float distance)
-{
-    const float dx = a.x - b.x;
-    const float dy = a.y - b.y;
-    return dx * dx + dy * dy <= distance * distance;
-}
-
 float giantFleaSide(Vector2 basePos, float boost)
 {
     return ((static_cast<int>(basePos.x * 13.0f + boost * 19.0f) & 1) == 0) ? -1.0f : 1.0f;
@@ -36,16 +29,6 @@ float giantFleaSide(Vector2 basePos, float boost)
 } // namespace
 
 using namespace game_config;
-
-void GiantFleaPickups::clear()
-{
-    _items.clear();
-    _nextX = 0.0f;
-    _attached = false;
-    _bouncesRemaining = 0;
-    _wasGrounded = false;
-    _activeBoost = 1.0f;
-}
 
 void GiantFleaPickups::reset(RidgeDashGame& game)
 {
@@ -80,17 +63,13 @@ void GiantFleaPickups::stream(RidgeDashGame& game, float targetX)
             continue;
         }
 
-        create(game, terrain);
+        doCreate(game, terrain);
         _nextX += gapDist(game._rng);
     }
 }
 
-void GiantFleaPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
+void GiantFleaPickups::doCreate(RidgeDashGame& game, const TerrainSample& terrain)
 {
-    if (!b2World_IsValid(game._worldId)) {
-        return;
-    }
-
     std::uniform_real_distribution<float> boostDist(0.96f, 1.42f);
     std::uniform_real_distribution<float> idleDist(0.20f, 1.45f);
 
@@ -101,31 +80,7 @@ void GiantFleaPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
     gf.boost = boostDist(game._rng);
     gf.idleCooldown = idleDist(game._rng);
 
-    b2BodyDef bodyDef = b2DefaultBodyDef();
-    bodyDef.type = b2_staticBody;
-    bodyDef.position = {gf.pos.x, gf.pos.y};
-    gf.bodyId = b2CreateBody(game._worldId, &bodyDef);
-
-    b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.isSensor = true;
-    shapeDef.enableSensorEvents = true;
-    b2Circle circle = {{0.0f, 0.0f}, kGiantFleaRadius};
-    gf.shapeId = b2CreateCircleShape(gf.bodyId, &shapeDef, &circle);
-}
-
-void GiantFleaPickups::trim(float minX)
-{
-    auto it = _items.begin();
-    while (it != _items.end()) {
-        if (it->active && it->basePos.x >= minX) {
-            ++it;
-            continue;
-        }
-        if (b2Body_IsValid(it->bodyId)) {
-            b2DestroyBody(it->bodyId);
-        }
-        it = _items.erase(it);
-    }
+    createSensorBody(game, gf.pos, kGiantFleaRadius, gf.bodyId, gf.shapeId);
 }
 
 void GiantFleaPickups::applyBounce(RidgeDashGame& game)
@@ -135,7 +90,7 @@ void GiantFleaPickups::applyBounce(RidgeDashGame& game)
     }
 
     const b2Vec2 velocity = game._vehicle.chassisVelocity();
-    // Same formula as regular flea: boost (0.96-1.42) × 3.7 randomizes the upward push.
+    // Same formula as regular flea: boost (0.96-1.42) x 3.7 randomizes the upward push.
     const float upwardDelta =
         9.6f + _activeBoost * 3.7f + std::max(0.0f, velocity.y) * 0.34f - std::max(0.0f, -velocity.y) * 0.10f;
     const b2Vec2 deltaVelocity = {clampf(velocity.x * 0.22f, -2.8f, 5.8f), -clampf(upwardDelta, 9.5f, 15.0f)};
@@ -149,7 +104,7 @@ void GiantFleaPickups::applyBounce(RidgeDashGame& game)
     game.playSfx(AudioSystem::Sfx::FleaJump);
 }
 
-bool GiantFleaPickups::collect(RidgeDashGame& game, Item& item)
+bool GiantFleaPickups::doCollect(RidgeDashGame& game, Item& item)
 {
     if (!item.active || item.cooldown > 0.0f || item.triggeredJump || _attached || !game.carValid()) {
         return false;
@@ -246,7 +201,7 @@ void GiantFleaPickups::update(RidgeDashGame& game, float dt)
         applyBounce(game);
         _bouncesRemaining--;
         if (_bouncesRemaining <= 0) {
-            // All bounces used — detach with a finish burst.
+            // All bounces used --- detach with a finish burst.
             const b2Vec2 chassisPos = game._vehicle.chassisPosition();
             game._pickups.effects().spawn(
                 {chassisPos.x, chassisPos.y - 0.3f}, PickupEffects::Kind::GiantFlea, game._runSeed);
@@ -260,44 +215,9 @@ void GiantFleaPickups::update(RidgeDashGame& game, float dt)
     }
 }
 
-bool GiantFleaPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
+float GiantFleaPickups::pickupDistance() const
 {
-    if (!game._vehicle.shapeBelongsToVehicle(otherShape)) {
-        return false;
-    }
-    for (Item& item : _items) {
-        if (item.active && b2Shape_IsValid(item.shapeId) && B2_ID_EQUALS(item.shapeId, pickupShape)) {
-            return collect(game, item);
-        }
-    }
-    return false;
-}
-
-bool GiantFleaPickups::collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus)
-{
-    bool collected = false;
-    for (Item& item : _items) {
-        if (!item.active) {
-            continue;
-        }
-        for (int i = 0; i < count; ++i) {
-            if (nearPoint(points[i], item.pos, kGiantFleaPickupDistance + speedBonus)) {
-                collected = collect(game, item) || collected;
-                break;
-            }
-        }
-    }
-    return collected;
-}
-
-bool GiantFleaPickups::activeNear(float x, float distance) const
-{
-    for (const Item& item : _items) {
-        if (item.active && std::abs(item.basePos.x - x) <= distance) {
-            return true;
-        }
-    }
-    return false;
+    return kGiantFleaPickupDistance;
 }
 
 bool GiantFleaPickups::attached() const
@@ -374,10 +294,12 @@ void GiantFleaPickups::draw(const RidgeDashGame& game) const
     }
 }
 
-void GiantFleaPickups::forceSpawnAt(RidgeDashGame& game, float x)
+void GiantFleaPickups::doClear()
 {
-    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
-    create(game, terrain);
+    _attached = false;
+    _bouncesRemaining = 0;
+    _wasGrounded = false;
+    _activeBoost = 1.0f;
 }
 
 } // namespace ridge_dash

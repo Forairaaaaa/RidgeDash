@@ -21,13 +21,6 @@
 namespace ridge_dash {
 namespace {
 
-bool nearPoint(Vector2 a, Vector2 b, float distance)
-{
-    const float dx = a.x - b.x;
-    const float dy = a.y - b.y;
-    return dx * dx + dy * dy <= distance * distance;
-}
-
 float fleaSide(Vector2 basePos, float boost)
 {
     return ((static_cast<int>(basePos.x * 13.0f + boost * 19.0f) & 1) == 0) ? -1.0f : 1.0f;
@@ -36,12 +29,6 @@ float fleaSide(Vector2 basePos, float boost)
 } // namespace
 
 using namespace game_config;
-
-void FleaPickups::clear()
-{
-    _items.clear();
-    _nextX = 0.0f;
-}
 
 void FleaPickups::reset(RidgeDashGame& game)
 {
@@ -80,17 +67,13 @@ void FleaPickups::stream(RidgeDashGame& game, float targetX)
             continue;
         }
 
-        create(game, terrain);
+        doCreate(game, terrain);
         _nextX += gapDist(game._rng);
     }
 }
 
-void FleaPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
+void FleaPickups::doCreate(RidgeDashGame& game, const TerrainSample& terrain)
 {
-    if (!b2World_IsValid(game._worldId)) {
-        return;
-    }
-
     std::uniform_real_distribution<float> boostDist(0.96f, 1.42f);
     std::uniform_real_distribution<float> idleDist(0.20f, 1.45f);
 
@@ -101,31 +84,7 @@ void FleaPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
     flea.boost = boostDist(game._rng);
     flea.idleCooldown = idleDist(game._rng);
 
-    b2BodyDef bodyDef = b2DefaultBodyDef();
-    bodyDef.type = b2_staticBody;
-    bodyDef.position = {flea.pos.x, flea.pos.y};
-    flea.bodyId = b2CreateBody(game._worldId, &bodyDef);
-
-    b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.isSensor = true;
-    shapeDef.enableSensorEvents = true;
-    b2Circle circle = {{0.0f, 0.0f}, kFleaRadius};
-    flea.shapeId = b2CreateCircleShape(flea.bodyId, &shapeDef, &circle);
-}
-
-void FleaPickups::trim(float minX)
-{
-    auto it = _items.begin();
-    while (it != _items.end()) {
-        if (it->active && it->basePos.x >= minX) {
-            ++it;
-            continue;
-        }
-        if (b2Body_IsValid(it->bodyId)) {
-            b2DestroyBody(it->bodyId);
-        }
-        it = _items.erase(it);
-    }
+    createSensorBody(game, flea.pos, kFleaRadius, flea.bodyId, flea.shapeId);
 }
 
 void FleaPickups::applyBoost(RidgeDashGame& game, float boost)
@@ -143,7 +102,7 @@ void FleaPickups::applyBoost(RidgeDashGame& game, float boost)
     game._vehicle.applyChassisAngularImpulse((velocity.x >= 0.0f ? -1.0f : 1.0f) * (0.22f + boost * 0.08f));
 }
 
-bool FleaPickups::collect(RidgeDashGame& game, Item& flea)
+bool FleaPickups::doCollect(RidgeDashGame& game, Item& flea)
 {
     if (!flea.active || flea.cooldown > 0.0f || flea.triggeredJump) {
         return false;
@@ -218,34 +177,9 @@ void FleaPickups::update(RidgeDashGame& game, float dt)
     }
 }
 
-bool FleaPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
+float FleaPickups::pickupDistance() const
 {
-    if (!game._vehicle.shapeBelongsToVehicle(otherShape)) {
-        return false;
-    }
-    for (Item& flea : _items) {
-        if (flea.active && b2Shape_IsValid(flea.shapeId) && B2_ID_EQUALS(flea.shapeId, pickupShape)) {
-            return collect(game, flea);
-        }
-    }
-    return false;
-}
-
-bool FleaPickups::collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus)
-{
-    bool collected = false;
-    for (Item& flea : _items) {
-        if (!flea.active) {
-            continue;
-        }
-        for (int i = 0; i < count; ++i) {
-            if (nearPoint(points[i], flea.pos, kFleaPickupDistance + speedBonus)) {
-                collected = collect(game, flea) || collected;
-                break;
-            }
-        }
-    }
-    return collected;
+    return kFleaPickupDistance;
 }
 
 bool FleaPickups::activeInRange(float minX, float maxX) const
@@ -299,12 +233,6 @@ void FleaPickups::draw(const RidgeDashGame& game) const
             DrawRectangle(ix + 2, iy + 6, 2, 2, fadeColor(Color{210, 255, 239, 255}, 0.55f));
         }
     }
-}
-
-void FleaPickups::forceSpawnAt(RidgeDashGame& game, float x)
-{
-    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
-    create(game, terrain);
 }
 
 } // namespace ridge_dash

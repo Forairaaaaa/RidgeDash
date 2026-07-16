@@ -18,26 +18,8 @@
 #include <random>
 
 namespace ridge_dash {
-namespace {
-
-constexpr float kPi = 3.14159265358979323846f;
-
-bool nearPoint(Vector2 a, Vector2 b, float distance)
-{
-    const float dx = a.x - b.x;
-    const float dy = a.y - b.y;
-    return dx * dx + dy * dy <= distance * distance;
-}
-
-} // namespace
 
 using namespace game_config;
-
-void FuelPickups::clear()
-{
-    _items.clear();
-    _nextX = 0.0f;
-}
 
 void FuelPickups::reset(RidgeDashGame& game)
 {
@@ -54,18 +36,14 @@ void FuelPickups::stream(RidgeDashGame& game, float targetX)
     std::uniform_real_distribution<float> gapDist(40.0f, 72.0f);
     while (_nextX < targetX) {
         const TerrainSample terrain = game._terrain.sampleAt(_nextX, 8.0f, game._rng);
-        create(game, terrain);
+        doCreate(game, terrain);
         _nextX += gapDist(game._rng);
     }
 }
 
-void FuelPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
+void FuelPickups::doCreate(RidgeDashGame& game, const TerrainSample& terrain)
 {
-    if (!b2World_IsValid(game._worldId)) {
-        return;
-    }
-
-    std::uniform_real_distribution<float> phaseDist(0.0f, kPi * 2.0f);
+    std::uniform_real_distribution<float> phaseDist(0.0f, 2.0f * 3.14159265358979323846f);
 
     _items.push_back(Item{});
     Item& fuel = _items.back();
@@ -73,31 +51,7 @@ void FuelPickups::create(RidgeDashGame& game, const TerrainSample& terrain)
     fuel.pos = fuel.basePos;
     fuel.idlePhase = phaseDist(game._rng);
 
-    b2BodyDef bodyDef = b2DefaultBodyDef();
-    bodyDef.type = b2_staticBody;
-    bodyDef.position = {fuel.pos.x, fuel.pos.y};
-    fuel.bodyId = b2CreateBody(game._worldId, &bodyDef);
-
-    b2ShapeDef shapeDef = b2DefaultShapeDef();
-    shapeDef.isSensor = true;
-    shapeDef.enableSensorEvents = true;
-    b2Circle circle = {{0.0f, 0.0f}, kFuelCanRadius};
-    fuel.shapeId = b2CreateCircleShape(fuel.bodyId, &shapeDef, &circle);
-}
-
-void FuelPickups::trim(float minX)
-{
-    auto it = _items.begin();
-    while (it != _items.end()) {
-        if (it->active && it->basePos.x >= minX) {
-            ++it;
-            continue;
-        }
-        if (b2Body_IsValid(it->bodyId)) {
-            b2DestroyBody(it->bodyId);
-        }
-        it = _items.erase(it);
-    }
+    createSensorBody(game, fuel.pos, kFuelCanRadius, fuel.bodyId, fuel.shapeId);
 }
 
 void FuelPickups::update(float dt)
@@ -114,7 +68,7 @@ void FuelPickups::update(float dt)
     }
 }
 
-bool FuelPickups::collect(RidgeDashGame& game, Item& fuel)
+bool FuelPickups::doCollect(RidgeDashGame& game, Item& fuel)
 {
     if (!fuel.active) {
         return false;
@@ -133,36 +87,6 @@ bool FuelPickups::collect(RidgeDashGame& game, Item& fuel)
     return true;
 }
 
-bool FuelPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
-{
-    if (!game._vehicle.shapeBelongsToVehicle(otherShape)) {
-        return false;
-    }
-    for (Item& fuel : _items) {
-        if (fuel.active && b2Shape_IsValid(fuel.shapeId) && B2_ID_EQUALS(fuel.shapeId, pickupShape)) {
-            return collect(game, fuel);
-        }
-    }
-    return false;
-}
-
-bool FuelPickups::collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus)
-{
-    bool collected = false;
-    for (Item& fuel : _items) {
-        if (!fuel.active) {
-            continue;
-        }
-        for (int i = 0; i < count; ++i) {
-            if (nearPoint(points[i], fuel.pos, kFuelPickupDistance + speedBonus)) {
-                collected = collect(game, fuel) || collected;
-                break;
-            }
-        }
-    }
-    return collected;
-}
-
 bool FuelPickups::activeInRange(float minX, float maxX) const
 {
     for (const Item& fuel : _items) {
@@ -173,14 +97,9 @@ bool FuelPickups::activeInRange(float minX, float maxX) const
     return false;
 }
 
-bool FuelPickups::activeNear(float x, float distance) const
+float FuelPickups::pickupDistance() const
 {
-    for (const Item& fuel : _items) {
-        if (fuel.active && std::abs(fuel.pos.x - x) <= distance) {
-            return true;
-        }
-    }
-    return false;
+    return game_config::kFuelPickupDistance;
 }
 
 void FuelPickups::draw(const RidgeDashGame& game) const
@@ -205,12 +124,6 @@ void FuelPickups::draw(const RidgeDashGame& game) const
             DrawRectangleLines(ix - 5, iy - 7, 10, 14, Color{82, 32, 39, 255});
         }
     }
-}
-
-void FuelPickups::forceSpawnAt(RidgeDashGame& game, float x)
-{
-    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
-    create(game, terrain);
 }
 
 } // namespace ridge_dash

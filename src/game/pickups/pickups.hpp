@@ -10,6 +10,7 @@
  */
 #pragma once
 
+#include "game/pickups/pickup_base.hpp"
 #include "platform/raylib_compat.hpp"
 
 #include <box2d/box2d.h>
@@ -45,21 +46,15 @@ private:
     uint32_t _serial = 0;
 };
 
-class FuelPickups {
+class FuelPickups : public PickupCollection<FuelPickups> {
 public:
-    void clear();
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
-    void trim(float minX);
     void update(float dt);
-    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
-    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeInRange(float minX, float maxX) const;
-    bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
-    void forceSpawnAt(RidgeDashGame& game, float x);
 
-private:
+    // ── CRTP hooks / accessors ──────────────────────────────────────
     struct Item {
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
@@ -70,26 +65,47 @@ private:
         bool active = true;
     };
 
-    void create(RidgeDashGame& game, const TerrainSample& terrain);
-    bool collect(RidgeDashGame& game, Item& fuel);
+    std::vector<Item>& items()
+    {
+        return _items;
+    }
+    const std::vector<Item>& items() const
+    {
+        return _items;
+    }
+    float& nextX()
+    {
+        return _nextX;
+    }
+    const float& nextX() const
+    {
+        return _nextX;
+    }
 
+    Vector2 itemPos(const Item& it) const
+    {
+        return it.pos;
+    }
+    float itemTrimX(const Item& it) const
+    {
+        return it.basePos.x;
+    }
+    float pickupDistance() const;
+    void doCreate(RidgeDashGame& game, const TerrainSample& terrain);
+    bool doCollect(RidgeDashGame& game, Item& item);
+
+private:
     std::vector<Item> _items;
     float _nextX = 0.0f;
 };
 
-class CoinPickups {
+class CoinPickups : public PickupCollection<CoinPickups> {
 public:
-    void clear();
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
-    void trim(float minX);
-    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
-    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
-    bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
-    void forceSpawnAt(RidgeDashGame& game, float x);
 
-private:
+    // ── CRTP hooks / accessors ──────────────────────────────────────
     struct Item {
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
@@ -97,28 +113,55 @@ private:
         bool active = true;
     };
 
-    void create(RidgeDashGame& game, const TerrainSample& terrain, float yOffset);
-    void createAt(RidgeDashGame& game, Vector2 worldPos);
-    bool collect(RidgeDashGame& game, Item& coin);
+    std::vector<Item>& items()
+    {
+        return _items;
+    }
+    const std::vector<Item>& items() const
+    {
+        return _items;
+    }
+    float& nextX()
+    {
+        return _nextX;
+    }
+    const float& nextX() const
+    {
+        return _nextX;
+    }
 
+    Vector2 itemPos(const Item& it) const
+    {
+        return it.pos;
+    }
+    float itemTrimX(const Item& it) const
+    {
+        return it.pos.x;
+    }
+    float pickupDistance() const;
+    void doCreate(RidgeDashGame& game, const TerrainSample& terrain);
+    bool doCollect(RidgeDashGame& game, Item& item);
+
+    // Coin-specific: create at an exact world position (no terrain sample needed).
+    void createAt(RidgeDashGame& game, Vector2 worldPos);
+
+    // Override base forceSpawnAt — coin uses heightAt + createAt instead of sampleAt.
+    void forceSpawnAt(RidgeDashGame& game, float x);
+
+private:
     std::vector<Item> _items;
     float _nextX = 0.0f;
 };
 
-class FleaPickups {
+class FleaPickups : public PickupCollection<FleaPickups> {
 public:
-    void clear();
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
-    void trim(float minX);
     void update(RidgeDashGame& game, float dt);
-    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
-    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeInRange(float minX, float maxX) const;
     void draw(const RidgeDashGame& game) const;
-    void forceSpawnAt(RidgeDashGame& game, float x);
 
-private:
+    // ── CRTP hooks / accessors ──────────────────────────────────────
     struct Item {
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
@@ -135,29 +178,50 @@ private:
         bool active = true;
     };
 
-    void create(RidgeDashGame& game, const TerrainSample& terrain);
-    bool collect(RidgeDashGame& game, Item& flea);
+    std::vector<Item>& items()
+    {
+        return _items;
+    }
+    const std::vector<Item>& items() const
+    {
+        return _items;
+    }
+    float& nextX()
+    {
+        return _nextX;
+    }
+    const float& nextX() const
+    {
+        return _nextX;
+    }
+
+    Vector2 itemPos(const Item& it) const
+    {
+        return it.pos;
+    }
+    float itemTrimX(const Item& it) const
+    {
+        return it.basePos.x;
+    }
+    float pickupDistance() const;
+    void doCreate(RidgeDashGame& game, const TerrainSample& terrain);
+    bool doCollect(RidgeDashGame& game, Item& item);
     void applyBoost(RidgeDashGame& game, float boost);
 
+private:
     std::vector<Item> _items;
     float _nextX = 0.0f;
 };
 
-class RocketPickups {
+class RocketPickups : public PickupCollection<RocketPickups> {
 public:
-    void clear();
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
-    void trim(float minX);
     void update(RidgeDashGame& game, float dt);
     void applyStepForces(RidgeDashGame& game);
-    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
-    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
-    bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
-    void forceSpawnAt(RidgeDashGame& game, float x);
 
-private:
+    // ── CRTP hooks / accessors ──────────────────────────────────────
     struct Item {
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
@@ -176,8 +240,37 @@ private:
         uint32_t seed = 0;
     };
 
-    void create(RidgeDashGame& game, const TerrainSample& terrain);
-    bool collect(RidgeDashGame& game, Item& rocket);
+    std::vector<Item>& items()
+    {
+        return _items;
+    }
+    const std::vector<Item>& items() const
+    {
+        return _items;
+    }
+    float& nextX()
+    {
+        return _nextX;
+    }
+    const float& nextX() const
+    {
+        return _nextX;
+    }
+
+    Vector2 itemPos(const Item& it) const
+    {
+        return it.pos;
+    }
+    float itemTrimX(const Item& it) const
+    {
+        return it.basePos.x;
+    }
+    float pickupDistance() const;
+    void doCreate(RidgeDashGame& game, const TerrainSample& terrain);
+    bool doCollect(RidgeDashGame& game, Item& item);
+    void doClear();
+
+private:
     void spawnTrail(RidgeDashGame& game, b2Vec2 tailPos, b2Vec2 carVelocity);
 
     std::vector<Item> _items;
@@ -189,20 +282,14 @@ private:
     bool _flightActive = false;
 };
 
-class CactusPickups {
+class CactusPickups : public PickupCollection<CactusPickups> {
 public:
-    void clear();
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
-    void trim(float minX);
     void update(float dt);
-    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
-    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
-    bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
-    void forceSpawnAt(RidgeDashGame& game, float x);
 
-private:
+    // ── CRTP hooks / accessors ──────────────────────────────────────
     struct Item {
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
@@ -221,8 +308,38 @@ private:
         uint32_t seed = 0;
     };
 
-    void create(RidgeDashGame& game, const TerrainSample& terrain);
-    bool hit(RidgeDashGame& game, Item& cactus);
+    std::vector<Item>& items()
+    {
+        return _items;
+    }
+    const std::vector<Item>& items() const
+    {
+        return _items;
+    }
+    float& nextX()
+    {
+        return _nextX;
+    }
+    const float& nextX() const
+    {
+        return _nextX;
+    }
+
+    Vector2 itemPos(const Item& it) const
+    {
+        return it.pos;
+    }
+    float itemTrimX(const Item& it) const
+    {
+        return it.pos.x;
+    }
+    float pickupDistance() const;
+    void doCreate(RidgeDashGame& game, const TerrainSample& terrain);
+    bool doCollect(RidgeDashGame& game, Item& item);
+    void doClear();
+    void doTrimExtra(float minX);
+
+private:
     void spawnChips(RidgeDashGame& game, Vector2 pos, float direction);
 
     std::vector<Item> _items;
@@ -231,21 +348,15 @@ private:
     uint32_t _chipSerial = 0;
 };
 
-class SnowmanPickups {
+class SnowmanPickups : public PickupCollection<SnowmanPickups> {
 public:
-    void clear();
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
-    void trim(float minX);
     void update(RidgeDashGame& game, float dt);
     void applyStepForces(RidgeDashGame& game);
-    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
-    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
-    bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
-    void forceSpawnAt(RidgeDashGame& game, float x);
 
-private:
+    // ── CRTP hooks / accessors ──────────────────────────────────────
     struct Item {
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
@@ -254,8 +365,37 @@ private:
         bool active = true;
     };
 
-    void create(RidgeDashGame& game, const TerrainSample& terrain);
-    bool collect(RidgeDashGame& game, Item& snowman);
+    std::vector<Item>& items()
+    {
+        return _items;
+    }
+    const std::vector<Item>& items() const
+    {
+        return _items;
+    }
+    float& nextX()
+    {
+        return _nextX;
+    }
+    const float& nextX() const
+    {
+        return _nextX;
+    }
+
+    Vector2 itemPos(const Item& it) const
+    {
+        return it.pos;
+    }
+    float itemTrimX(const Item& it) const
+    {
+        return it.pos.x;
+    }
+    float pickupDistance() const;
+    void doCreate(RidgeDashGame& game, const TerrainSample& terrain);
+    bool doCollect(RidgeDashGame& game, Item& item);
+    void doClear();
+
+private:
     void applyBoost(RidgeDashGame& game);
 
     std::vector<Item> _items;
@@ -303,21 +443,15 @@ private:
     uint32_t _serial = 0;
 };
 
-class GiantFleaPickups {
+class GiantFleaPickups : public PickupCollection<GiantFleaPickups> {
 public:
-    void clear();
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
-    void trim(float minX);
     void update(RidgeDashGame& game, float dt);
-    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
-    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
-    bool activeNear(float x, float distance) const;
     bool attached() const;
     void draw(const RidgeDashGame& game) const;
-    void forceSpawnAt(RidgeDashGame& game, float x);
 
-private:
+    // ── CRTP hooks / accessors ──────────────────────────────────────
     struct Item {
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
@@ -334,8 +468,37 @@ private:
         bool active = true;
     };
 
-    void create(RidgeDashGame& game, const TerrainSample& terrain);
-    bool collect(RidgeDashGame& game, Item& item);
+    std::vector<Item>& items()
+    {
+        return _items;
+    }
+    const std::vector<Item>& items() const
+    {
+        return _items;
+    }
+    float& nextX()
+    {
+        return _nextX;
+    }
+    const float& nextX() const
+    {
+        return _nextX;
+    }
+
+    Vector2 itemPos(const Item& it) const
+    {
+        return it.pos;
+    }
+    float itemTrimX(const Item& it) const
+    {
+        return it.basePos.x;
+    }
+    float pickupDistance() const;
+    void doCreate(RidgeDashGame& game, const TerrainSample& terrain);
+    bool doCollect(RidgeDashGame& game, Item& item);
+    void doClear();
+
+private:
     void applyBounce(RidgeDashGame& game);
 
     std::vector<Item> _items;
@@ -348,20 +511,14 @@ private:
     float _activeBoost = 1.0f;
 };
 
-class HelmetPickups {
+class HelmetPickups : public PickupCollection<HelmetPickups> {
 public:
-    void clear();
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
-    void trim(float minX);
     void update(float dt);
-    bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
-    bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
-    bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
-    void forceSpawnAt(RidgeDashGame& game, float x);
 
-private:
+    // ── CRTP hooks / accessors (public — base calls them) ────────────
     struct Item {
         b2BodyId bodyId = b2_nullBodyId;
         b2ShapeId shapeId = b2_nullShapeId;
@@ -372,9 +529,37 @@ private:
         bool active = true;
     };
 
-    void create(RidgeDashGame& game, const TerrainSample& terrain);
-    bool collect(RidgeDashGame& game, Item& item);
+    std::vector<Item>& items()
+    {
+        return _items;
+    }
+    const std::vector<Item>& items() const
+    {
+        return _items;
+    }
+    float& nextX()
+    {
+        return _nextX;
+    }
+    const float& nextX() const
+    {
+        return _nextX;
+    }
 
+    Vector2 itemPos(const Item& it) const
+    {
+        return it.pos;
+    }
+    float itemTrimX(const Item& it) const
+    {
+        return it.basePos.x;
+    }
+    float pickupDistance() const;
+
+    void doCreate(RidgeDashGame& game, const TerrainSample& terrain);
+    bool doCollect(RidgeDashGame& game, Item& item);
+
+private:
     std::vector<Item> _items;
     float _nextX = 0.0f;
 };

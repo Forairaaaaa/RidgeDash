@@ -21,15 +21,6 @@
 namespace ridge_dash {
 namespace {
 
-constexpr float kPi = 3.14159265358979323846f;
-
-bool nearPoint(Vector2 a, Vector2 b, float distance)
-{
-    const float dx = a.x - b.x;
-    const float dy = a.y - b.y;
-    return dx * dx + dy * dy <= distance * distance;
-}
-
 // Coin shape patterns. Points are built in a local frame where +x is forward and
 // +y is UP; the caller anchors and flips into world space (world y is down).
 enum class CoinShape {
@@ -84,24 +75,24 @@ std::vector<Vector2> buildShapePoints(CoinShape shape, float scale, float slope,
             for (int i = 0; i < n; ++i) {
                 const float t = static_cast<float>(i) / static_cast<float>(n - 1);
                 const float x = t * len;
-                pts.push_back({x, x * slope + std::sin(t * kPi * 2.0f) * amp});
+                pts.push_back({x, x * slope + std::sin(t * 3.14159265358979323846f * 2.0f) * amp});
             }
             break;
         }
         case CoinShape::Circle: {
             const float r = 1.2f + scale * 1.3f;
-            const int n = std::max(8, spanCount(2.0f * kPi * r));
+            const int n = std::max(8, spanCount(2.0f * 3.14159265358979323846f * r));
             for (int i = 0; i < n; ++i) {
-                const float a = (static_cast<float>(i) / static_cast<float>(n)) * kPi * 2.0f;
+                const float a = (static_cast<float>(i) / static_cast<float>(n)) * 3.14159265358979323846f * 2.0f;
                 pts.push_back({std::cos(a) * r, r + std::sin(a) * r});
             }
             break;
         }
         case CoinShape::Arch: {
             const float r = 1.6f + scale * 2.0f;
-            const int n = std::max(5, spanCount(kPi * r));
+            const int n = std::max(5, spanCount(3.14159265358979323846f * r));
             for (int i = 0; i < n; ++i) {
-                const float a = kPi * (static_cast<float>(i) / static_cast<float>(n - 1)); // 0..pi
+                const float a = 3.14159265358979323846f * (static_cast<float>(i) / static_cast<float>(n - 1));
                 pts.push_back({-std::cos(a) * r + r, std::sin(a) * r});
             }
             break;
@@ -153,12 +144,6 @@ std::vector<Vector2> buildShapePoints(CoinShape shape, float scale, float slope,
 } // namespace
 
 using namespace game_config;
-
-void CoinPickups::clear()
-{
-    _items.clear();
-    _nextX = 0.0f;
-}
 
 void CoinPickups::reset(RidgeDashGame& game)
 {
@@ -264,11 +249,6 @@ void CoinPickups::stream(RidgeDashGame& game, float targetX)
     }
 }
 
-void CoinPickups::create(RidgeDashGame& game, const TerrainSample& terrain, float yOffset)
-{
-    createAt(game, {terrain.x, terrain.y + yOffset});
-}
-
 void CoinPickups::createAt(RidgeDashGame& game, Vector2 worldPos)
 {
     if (!b2World_IsValid(game._worldId)) {
@@ -291,22 +271,7 @@ void CoinPickups::createAt(RidgeDashGame& game, Vector2 worldPos)
     coin.shapeId = b2CreateCircleShape(coin.bodyId, &shapeDef, &circle);
 }
 
-void CoinPickups::trim(float minX)
-{
-    auto it = _items.begin();
-    while (it != _items.end()) {
-        if (it->active && it->pos.x >= minX) {
-            ++it;
-            continue;
-        }
-        if (b2Body_IsValid(it->bodyId)) {
-            b2DestroyBody(it->bodyId);
-        }
-        it = _items.erase(it);
-    }
-}
-
-bool CoinPickups::collect(RidgeDashGame& game, Item& coin)
+bool CoinPickups::doCollect(RidgeDashGame& game, Item& coin)
 {
     if (!coin.active) {
         return false;
@@ -324,46 +289,6 @@ bool CoinPickups::collect(RidgeDashGame& game, Item& coin)
     coin.bodyId = b2_nullBodyId;
     coin.shapeId = b2_nullShapeId;
     return true;
-}
-
-bool CoinPickups::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
-{
-    if (!game._vehicle.shapeBelongsToVehicle(otherShape)) {
-        return false;
-    }
-    for (Item& coin : _items) {
-        if (coin.active && b2Shape_IsValid(coin.shapeId) && B2_ID_EQUALS(coin.shapeId, pickupShape)) {
-            return collect(game, coin);
-        }
-    }
-    return false;
-}
-
-bool CoinPickups::collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus)
-{
-    bool collected = false;
-    for (Item& coin : _items) {
-        if (!coin.active) {
-            continue;
-        }
-        for (int i = 0; i < count; ++i) {
-            if (nearPoint(points[i], coin.pos, kCoinPickupDistance + speedBonus)) {
-                collected = collect(game, coin) || collected;
-                break;
-            }
-        }
-    }
-    return collected;
-}
-
-bool CoinPickups::activeNear(float x, float distance) const
-{
-    for (const Item& coin : _items) {
-        if (coin.active && std::abs(coin.pos.x - x) <= distance) {
-            return true;
-        }
-    }
-    return false;
 }
 
 void CoinPickups::draw(const RidgeDashGame& game) const
@@ -393,6 +318,16 @@ void CoinPickups::forceSpawnAt(RidgeDashGame& game, float x)
 {
     const float y = game._terrain.heightAt(x);
     createAt(game, {x, y - 0.8f});
+}
+
+float CoinPickups::pickupDistance() const
+{
+    return game_config::kCoinPickupDistance;
+}
+
+void CoinPickups::doCreate(RidgeDashGame& game, const TerrainSample& terrain)
+{
+    createAt(game, {terrain.x, terrain.y - 0.8f});
 }
 
 } // namespace ridge_dash
