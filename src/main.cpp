@@ -276,6 +276,47 @@ int main()
         }
     }
 
+    Shader resetDissolveShader{};
+    int resetDissolveLiveTextureLoc = -1;
+    int resetDissolveProgressLoc = -1;
+    int resetDissolveTimeLoc = -1;
+    int resetDissolveResolutionLoc = -1;
+    bool resetDissolveLoaded = false;
+    const std::string resetDissolveCandidates[] = {
+        "assets/shaders/reset_dissolve.fs",
+        crtAppDir + "assets/shaders/reset_dissolve.fs",
+        crtAppDir + "../assets/shaders/reset_dissolve.fs",
+        crtAppDir + "../Resources/assets/shaders/reset_dissolve.fs",
+    };
+    for (const std::string& path : resetDissolveCandidates) {
+        if (FileExists(path.c_str())) {
+            resetDissolveShader = LoadShader(nullptr, path.c_str());
+            if (IsShaderValid(resetDissolveShader)) {
+                resetDissolveLiveTextureLoc = GetShaderLocation(resetDissolveShader, "liveTexture");
+                resetDissolveProgressLoc = GetShaderLocation(resetDissolveShader, "uProgress");
+                resetDissolveTimeLoc = GetShaderLocation(resetDissolveShader, "uTime");
+                resetDissolveResolutionLoc = GetShaderLocation(resetDissolveShader, "uNativeResolution");
+                resetDissolveLoaded = true;
+            }
+            break;
+        }
+    }
+
+    RenderTexture2D resetFreezeTarget{};
+    RenderTexture2D resetDissolveTarget{};
+    if (resetDissolveLoaded && IsRenderTextureValid(renderTarget)) {
+        resetFreezeTarget = LoadRenderTexture(renderTarget.texture.width, renderTarget.texture.height);
+        resetDissolveTarget = LoadRenderTexture(renderTarget.texture.width, renderTarget.texture.height);
+        if (IsRenderTextureValid(resetFreezeTarget)) {
+            SetTextureFilter(resetFreezeTarget.texture, TEXTURE_FILTER_BILINEAR);
+            SetTextureWrap(resetFreezeTarget.texture, TEXTURE_WRAP_CLAMP);
+        }
+        if (IsRenderTextureValid(resetDissolveTarget)) {
+            SetTextureFilter(resetDissolveTarget.texture, TEXTURE_FILTER_BILINEAR);
+            SetTextureWrap(resetDissolveTarget.texture, TEXTURE_WRAP_CLAMP);
+        }
+    }
+
     // Bloom is desktop-only and built as a half-resolution bright pass followed
     // by three more bilinear downsample levels. Upsampling them additively gives
     // a broad, smooth halo without a large sampling kernel in the CRT shader.
@@ -415,6 +456,30 @@ int main()
                 const int destY = 0;
                 const int renderScaleValue = targetScale;
 #endif
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+                if (game.consumeResetDissolveCaptureRequest() && resetDissolveLoaded &&
+                    IsRenderTextureValid(resetFreezeTarget)) {
+                    // renderTarget still contains the last old-world frame here;
+                    // game.update() has already reset the world but has not drawn
+                    // the new one yet.
+                    BeginTextureMode(resetFreezeTarget);
+                    ClearBackground(BLACK);
+                    DrawTexturePro(renderTarget.texture,
+                                   Rectangle{0.0f,
+                                             0.0f,
+                                             static_cast<float>(renderTarget.texture.width),
+                                             -static_cast<float>(renderTarget.texture.height)},
+                                   Rectangle{0.0f,
+                                             0.0f,
+                                             static_cast<float>(resetFreezeTarget.texture.width),
+                                             static_cast<float>(resetFreezeTarget.texture.height)},
+                                   Vector2{0.0f, 0.0f},
+                                   0.0f,
+                                   WHITE);
+                    EndTextureMode();
+                }
+#endif
+
                 BeginTextureMode(renderTarget);
                 ClearBackground(BLACK);
                 BeginMode2D(Camera2D{{0.0f, 0.0f}, {0.0f, 0.0f}, 0.0f, static_cast<float>(renderScaleValue)});
@@ -424,6 +489,38 @@ int main()
 
                 Texture2D sceneTexture = renderTarget.texture;
 #if defined(RIDGEDASH_DESKTOP_RENDER)
+                if (game.resetDissolvePlaying() && resetDissolveLoaded && IsRenderTextureValid(resetFreezeTarget) &&
+                    IsRenderTextureValid(resetDissolveTarget)) {
+                    const float progress = game.resetDissolveProgress();
+                    const float time = static_cast<float>(GetTime());
+                    const Vector2 nativeResolution = {static_cast<float>(kScreenWidth),
+                                                      static_cast<float>(kScreenHeight)};
+                    SetShaderValue(resetDissolveShader, resetDissolveProgressLoc, &progress, SHADER_UNIFORM_FLOAT);
+                    SetShaderValue(resetDissolveShader, resetDissolveTimeLoc, &time, SHADER_UNIFORM_FLOAT);
+                    SetShaderValue(
+                        resetDissolveShader, resetDissolveResolutionLoc, &nativeResolution, SHADER_UNIFORM_VEC2);
+
+                    BeginTextureMode(resetDissolveTarget);
+                    ClearBackground(BLACK);
+                    BeginShaderMode(resetDissolveShader);
+                    SetShaderValueTexture(resetDissolveShader, resetDissolveLiveTextureLoc, renderTarget.texture);
+                    DrawTexturePro(resetFreezeTarget.texture,
+                                   Rectangle{0.0f,
+                                             0.0f,
+                                             static_cast<float>(resetFreezeTarget.texture.width),
+                                             -static_cast<float>(resetFreezeTarget.texture.height)},
+                                   Rectangle{0.0f,
+                                             0.0f,
+                                             static_cast<float>(resetDissolveTarget.texture.width),
+                                             static_cast<float>(resetDissolveTarget.texture.height)},
+                                   Vector2{0.0f, 0.0f},
+                                   0.0f,
+                                   WHITE);
+                    EndShaderMode();
+                    EndTextureMode();
+                    sceneTexture = resetDissolveTarget.texture;
+                }
+
                 if (game.exitTransitionPlaying() && exitTransitionLoaded &&
                     IsRenderTextureValid(exitTransitionTarget)) {
                     const float collapse = game.exitTransitionCollapse();
@@ -436,11 +533,11 @@ int main()
                     BeginTextureMode(exitTransitionTarget);
                     ClearBackground(BLACK);
                     BeginShaderMode(exitTransitionShader);
-                    DrawTexturePro(renderTarget.texture,
+                    DrawTexturePro(sceneTexture,
                                    Rectangle{0.0f,
                                              0.0f,
-                                             static_cast<float>(renderTarget.texture.width),
-                                             -static_cast<float>(renderTarget.texture.height)},
+                                             static_cast<float>(sceneTexture.width),
+                                             -static_cast<float>(sceneTexture.height)},
                                    Rectangle{0.0f,
                                              0.0f,
                                              static_cast<float>(exitTransitionTarget.texture.width),
@@ -584,6 +681,15 @@ int main()
 #endif
 #if defined(RIDGEDASH_DESKTOP_RENDER)
     unloadBloomTargets();
+    if (IsRenderTextureValid(resetFreezeTarget)) {
+        UnloadRenderTexture(resetFreezeTarget);
+    }
+    if (IsRenderTextureValid(resetDissolveTarget)) {
+        UnloadRenderTexture(resetDissolveTarget);
+    }
+    if (resetDissolveLoaded) {
+        UnloadShader(resetDissolveShader);
+    }
     if (IsRenderTextureValid(exitTransitionTarget)) {
         UnloadRenderTexture(exitTransitionTarget);
     }

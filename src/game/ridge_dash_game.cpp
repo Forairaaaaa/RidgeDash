@@ -28,6 +28,7 @@ namespace {
 constexpr float kExitCollapseVerticalDuration = 0.16f;
 constexpr float kExitCollapseHorizontalDuration = 0.12f;
 constexpr float kExitBlackHoldDuration = 0.35f;
+constexpr float kResetDissolveDuration = 0.22f;
 
 float smoothProgress(float value)
 {
@@ -254,6 +255,41 @@ float RidgeDashGame::exitTransitionFlash() const
     }
 }
 
+bool RidgeDashGame::resetDissolvePlaying() const
+{
+    return _resetDissolvePlaying;
+}
+
+float RidgeDashGame::resetDissolveProgress() const
+{
+    return _resetDissolveProgress;
+}
+
+bool RidgeDashGame::consumeResetDissolveCaptureRequest()
+{
+    const bool pending = _resetDissolveCapturePending;
+    _resetDissolveCapturePending = false;
+    return pending;
+}
+
+void RidgeDashGame::beginResetDissolve()
+{
+    _resetDissolvePlaying = true;
+    _resetDissolveCapturePending = true;
+    _resetDissolveProgress = 0.0f;
+}
+
+void RidgeDashGame::updateResetDissolve(float dt)
+{
+    if (!_resetDissolvePlaying) {
+        return;
+    }
+    _resetDissolveProgress = std::min(1.0f, _resetDissolveProgress + dt / kResetDissolveDuration);
+    if (_resetDissolveProgress >= 1.0f) {
+        _resetDissolvePlaying = false;
+    }
+}
+
 void RidgeDashGame::beginExitTransition()
 {
     if (exitTransitionPlaying()) {
@@ -329,6 +365,8 @@ void RidgeDashGame::update(float dt)
         return;
     }
 
+    updateResetDissolve(dt);
+
     if (_runController.paused()) {
         updatePauseMenu(dt);
         _ui.updateAnimations(dt, false, _runController.gameOverTimer());
@@ -341,8 +379,12 @@ void RidgeDashGame::update(float dt)
         return;
     }
 
-    if (_input.commands().reset || (_runController.gameOver() && _input.commands().confirm)) {
+    if (!_resetDissolvePlaying &&
+        (_input.commands().reset || (_runController.gameOver() && _input.commands().confirm))) {
         submitRunRecord();
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+        beginResetDissolve();
+#endif
         reset();
         return;
     }

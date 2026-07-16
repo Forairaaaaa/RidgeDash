@@ -63,6 +63,9 @@ public:
     bool exitTransitionBlackout() const;
     float exitTransitionCollapse() const;
     float exitTransitionFlash() const;
+    bool resetDissolvePlaying() const;
+    float resetDissolveProgress() const;
+    bool consumeResetDissolveCaptureRequest();
 
 private:
     friend class PickupSystem;
@@ -131,6 +134,8 @@ private:
     void submitRunRecord();
     void beginExitTransition();
     void updateExitTransition(float dt);
+    void beginResetDissolve();
+    void updateResetDissolve(float dt);
 
     void updatePickupOverlaps();
     void showScorePopup(int amount, const char* label);
@@ -179,6 +184,9 @@ private:
     };
     ExitTransitionPhase _exitTransitionPhase = ExitTransitionPhase::Idle;
     float _exitTransitionTimer = 0.0f;
+    bool _resetDissolvePlaying = false;
+    bool _resetDissolveCapturePending = false;
+    float _resetDissolveProgress = 0.0f;
 };
 
 } // namespace ridge_dash
