@@ -19,33 +19,24 @@ using namespace game_config;
 void PickupSystem::clear()
 {
     _effects.clear();
-    _fuel.clear();
-    _coin.clear();
-    _flea.clear();
-    _rocket.clear();
-    _cactus.clear();
-    _snowman.clear();
-    _giantFlea.clear();
-    _helmet.clear();
     _squid.clear();
+    forEachStandard([](auto& p) {
+        p.clear();
+    });
 }
 
 void PickupSystem::reset(RidgeDashGame& game)
 {
     _effects.reset();
-    _fuel.reset(game);
-    _coin.reset(game);
-    _flea.reset(game);
-    _rocket.reset(game);
-    _cactus.reset(game);
-    _snowman.reset(game);
-    _giantFlea.reset(game);
-    _helmet.reset(game);
     _squid.reset();
+    forEachStandard([&](auto& p) {
+        p.reset(game);
+    });
 }
 
 void PickupSystem::update(RidgeDashGame& game, float dt)
 {
+    // update() signatures vary (some need game, some don't) — keep manual dispatch.
     _fuel.update(dt);
     _flea.update(game, dt);
     _rocket.update(game, dt);
@@ -69,50 +60,33 @@ void PickupSystem::updateEffects(float dt)
 
 void PickupSystem::stream(RidgeDashGame& game, float carX)
 {
-    _fuel.stream(game, carX + kFuelGenerateAhead);
-    _coin.stream(game, carX + kCoinGenerateAhead);
-    _flea.stream(game, carX + kFleaGenerateAhead);
-    _rocket.stream(game, carX + kRocketGenerateAhead);
-    _cactus.stream(game, carX + kCactusGenerateAhead);
-    _snowman.stream(game, carX + kSnowmanGenerateAhead);
-    _giantFlea.stream(game, carX + kGiantFleaGenerateAhead);
-    _helmet.stream(game, carX + kHelmetGenerateAhead);
+    forEachStandard([&](auto& p) {
+        p.stream(game, carX + std::decay_t<decltype(p)>::kGenerateAhead);
+    });
 }
 
 void PickupSystem::trim(float minX)
 {
-    _fuel.trim(minX);
-    _coin.trim(minX);
-    _flea.trim(minX);
-    _rocket.trim(minX);
-    _cactus.trim(minX);
-    _snowman.trim(minX);
-    _giantFlea.trim(minX);
-    _helmet.trim(minX);
+    forEachStandard([minX](auto& p) {
+        p.trim(minX);
+    });
 }
 
 bool PickupSystem::collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape)
 {
-    return _fuel.collectByShape(game, pickupShape, otherShape) || _coin.collectByShape(game, pickupShape, otherShape) ||
-           _flea.collectByShape(game, pickupShape, otherShape) ||
-           _rocket.collectByShape(game, pickupShape, otherShape) ||
-           _cactus.collectByShape(game, pickupShape, otherShape) ||
-           _snowman.collectByShape(game, pickupShape, otherShape) ||
-           _giantFlea.collectByShape(game, pickupShape, otherShape) ||
-           _helmet.collectByShape(game, pickupShape, otherShape);
+    bool result = false;
+    forEachStandard([&](auto& p) {
+        result = p.collectByShape(game, pickupShape, otherShape) || result;
+    });
+    return result;
 }
 
 bool PickupSystem::collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus)
 {
     bool collected = false;
-    collected = _fuel.collectOverlaps(game, points, count, speedBonus) || collected;
-    collected = _coin.collectOverlaps(game, points, count, speedBonus) || collected;
-    collected = _flea.collectOverlaps(game, points, count, speedBonus) || collected;
-    collected = _rocket.collectOverlaps(game, points, count, speedBonus) || collected;
-    collected = _cactus.collectOverlaps(game, points, count, speedBonus) || collected;
-    collected = _snowman.collectOverlaps(game, points, count, speedBonus) || collected;
-    collected = _giantFlea.collectOverlaps(game, points, count, speedBonus) || collected;
-    collected = _helmet.collectOverlaps(game, points, count, speedBonus) || collected;
+    forEachStandard([&](auto& p) {
+        collected = p.collectOverlaps(game, points, count, speedBonus) || collected;
+    });
     return collected;
 }
 
@@ -123,14 +97,9 @@ void PickupSystem::triggerSquid(uint32_t runSeed)
 
 void PickupSystem::draw(const RidgeDashGame& game) const
 {
-    _fuel.draw(game);
-    _coin.draw(game);
-    _flea.draw(game);
-    _rocket.draw(game);
-    _cactus.draw(game);
-    _snowman.draw(game);
-    _giantFlea.draw(game);
-    _helmet.draw(game);
+    forEachStandard([&](const auto& p) {
+        p.draw(game);
+    });
 }
 
 void PickupSystem::drawEffects(const RidgeDashGame& game) const
@@ -338,22 +307,49 @@ void RidgeDashGame::handleSensorEvents()
 
 void PickupSystem::forceSpawnTestPickup(RidgeDashGame& game, const std::string& type, float x)
 {
-    if (type == "fuel") {
-        _fuel.forceSpawnAt(game, x);
-    } else if (type == "coin") {
-        _coin.forceSpawnAt(game, x);
-    } else if (type == "flea") {
-        _flea.forceSpawnAt(game, x);
-    } else if (type == "rocket") {
-        _rocket.forceSpawnAt(game, x);
-    } else if (type == "cactus") {
-        _cactus.forceSpawnAt(game, x);
-    } else if (type == "snowman") {
-        _snowman.forceSpawnAt(game, x);
-    } else if (type == "giantflea") {
-        _giantFlea.forceSpawnAt(game, x);
-    } else if (type == "helmet") {
-        _helmet.forceSpawnAt(game, x);
+    struct Entry {
+        const char* name;
+        void (*spawn)(PickupSystem&, RidgeDashGame&, float);
+    };
+    static const Entry kTable[] = {
+        {"fuel",
+         [](PickupSystem& s, RidgeDashGame& g, float xx) {
+             s._fuel.forceSpawnAt(g, xx);
+         }},
+        {"coin",
+         [](PickupSystem& s, RidgeDashGame& g, float xx) {
+             s._coin.forceSpawnAt(g, xx);
+         }},
+        {"flea",
+         [](PickupSystem& s, RidgeDashGame& g, float xx) {
+             s._flea.forceSpawnAt(g, xx);
+         }},
+        {"rocket",
+         [](PickupSystem& s, RidgeDashGame& g, float xx) {
+             s._rocket.forceSpawnAt(g, xx);
+         }},
+        {"cactus",
+         [](PickupSystem& s, RidgeDashGame& g, float xx) {
+             s._cactus.forceSpawnAt(g, xx);
+         }},
+        {"snowman",
+         [](PickupSystem& s, RidgeDashGame& g, float xx) {
+             s._snowman.forceSpawnAt(g, xx);
+         }},
+        {"giantflea",
+         [](PickupSystem& s, RidgeDashGame& g, float xx) {
+             s._giantFlea.forceSpawnAt(g, xx);
+         }},
+        {"helmet",
+         [](PickupSystem& s, RidgeDashGame& g, float xx) {
+             s._helmet.forceSpawnAt(g, xx);
+         }},
+    };
+    for (const auto& entry : kTable) {
+        if (type == entry.name) {
+            entry.spawn(*this, game, x);
+            return;
+        }
     }
 }
 

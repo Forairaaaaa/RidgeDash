@@ -10,6 +10,7 @@
  */
 #pragma once
 
+#include "game/game_config.hpp"
 #include "game/pickups/pickup_base.hpp"
 #include "platform/raylib_compat.hpp"
 
@@ -48,6 +49,8 @@ private:
 
 class FuelPickups : public PickupCollection<FuelPickups> {
 public:
+    static constexpr float kGenerateAhead = game_config::kFuelGenerateAhead;
+
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
     void update(float dt);
@@ -101,6 +104,8 @@ private:
 
 class CoinPickups : public PickupCollection<CoinPickups> {
 public:
+    static constexpr float kGenerateAhead = game_config::kCoinGenerateAhead;
+
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
     void draw(const RidgeDashGame& game) const;
@@ -155,6 +160,8 @@ private:
 
 class FleaPickups : public PickupCollection<FleaPickups> {
 public:
+    static constexpr float kGenerateAhead = game_config::kFleaGenerateAhead;
+
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
     void update(RidgeDashGame& game, float dt);
@@ -215,6 +222,8 @@ private:
 
 class RocketPickups : public PickupCollection<RocketPickups> {
 public:
+    static constexpr float kGenerateAhead = game_config::kRocketGenerateAhead;
+
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
     void update(RidgeDashGame& game, float dt);
@@ -284,6 +293,8 @@ private:
 
 class CactusPickups : public PickupCollection<CactusPickups> {
 public:
+    static constexpr float kGenerateAhead = game_config::kCactusGenerateAhead;
+
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
     void update(float dt);
@@ -350,6 +361,8 @@ private:
 
 class SnowmanPickups : public PickupCollection<SnowmanPickups> {
 public:
+    static constexpr float kGenerateAhead = game_config::kSnowmanGenerateAhead;
+
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
     void update(RidgeDashGame& game, float dt);
@@ -445,6 +458,8 @@ private:
 
 class GiantFleaPickups : public PickupCollection<GiantFleaPickups> {
 public:
+    static constexpr float kGenerateAhead = game_config::kGiantFleaGenerateAhead;
+
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
     void update(RidgeDashGame& game, float dt);
@@ -513,6 +528,8 @@ private:
 
 class HelmetPickups : public PickupCollection<HelmetPickups> {
 public:
+    static constexpr float kGenerateAhead = game_config::kHelmetGenerateAhead;
+
     void reset(RidgeDashGame& game);
     void stream(RidgeDashGame& game, float targetX);
     void update(float dt);
@@ -603,6 +620,32 @@ public:
     const SquidPickups& squid() const;
 
 private:
+    // Dispatch a callable over all 8 standard pickup members (non-const).
+    template <typename F>
+    void forEachStandard(F&& f)
+    {
+        f(_fuel);
+        f(_coin);
+        f(_flea);
+        f(_rocket);
+        f(_cactus);
+        f(_snowman);
+        f(_giantFlea);
+        f(_helmet);
+    }
+    template <typename F>
+    void forEachStandard(F&& f) const
+    {
+        f(_fuel);
+        f(_coin);
+        f(_flea);
+        f(_rocket);
+        f(_cactus);
+        f(_snowman);
+        f(_giantFlea);
+        f(_helmet);
+    }
+
     PickupEffects _effects;
     FuelPickups _fuel;
     CoinPickups _coin;
