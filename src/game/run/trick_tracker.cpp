@@ -61,8 +61,8 @@ TrickTracker::Bonus TrickTracker::update(float dt, const Sample& sample)
     }
 
     const bool airborne = !sample.rearGrounded && !sample.frontGrounded;
-    const bool rolling =
-        sample.angularSpeed > 1.25f || (_wasAirborne && sample.angularSpeed > 0.18f && std::abs(_flipAngle) > 0.24f);
+    const bool rolling = sample.angularSpeed > 0.85f
+                         || (_wasAirborne && sample.angularSpeed > 0.12f && std::abs(_flipAngle) > 0.10f);
     const bool tracking = airborne || rolling;
 
     if (tracking) {
