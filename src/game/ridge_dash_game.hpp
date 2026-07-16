@@ -43,6 +43,7 @@ public:
     void update(float dt);
     void draw() const;
     bool shouldQuit() const;
+    void requestGameExit();
     void setDisplayScaleOption(DisplayScaleOption option);
     DisplayScaleOption displayScaleOption() const;
     bool consumeDisplayScaleRequest(DisplayScaleOption& option);
@@ -58,6 +59,10 @@ public:
     bool renderInterpolation() const;
     float renderAlpha() const;
     void playSfx(AudioSystem::Sfx id);
+    bool exitTransitionPlaying() const;
+    bool exitTransitionBlackout() const;
+    float exitTransitionCollapse() const;
+    float exitTransitionFlash() const;
 
 private:
     friend class PickupSystem;
@@ -123,8 +128,9 @@ private:
     void updatePauseMenu(float dt);
     void enterPauseMenu();
     void exitPauseMenu();
-    void requestGameExit();
     void submitRunRecord();
+    void beginExitTransition();
+    void updateExitTransition(float dt);
 
     void updatePickupOverlaps();
     void showScorePopup(int amount, const char* label);
@@ -164,6 +170,15 @@ private:
     bool _helmetRescuedThisFrame = false; // prevent multi-segment head hits
     float _invincibleTimer = 0.0f;        // post-rescue invincibility (seconds)
     bool _quitRequested = false;
+
+    enum class ExitTransitionPhase {
+        Idle,
+        CollapseVertical,
+        CollapseHorizontal,
+        BlackHold,
+    };
+    ExitTransitionPhase _exitTransitionPhase = ExitTransitionPhase::Idle;
+    float _exitTransitionTimer = 0.0f;
 };
 
 } // namespace ridge_dash

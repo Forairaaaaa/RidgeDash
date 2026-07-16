@@ -24,6 +24,18 @@ namespace ridge_dash {
 
 using namespace game_config;
 
+namespace {
+constexpr float kExitCollapseVerticalDuration = 0.16f;
+constexpr float kExitCollapseHorizontalDuration = 0.12f;
+constexpr float kExitBlackHoldDuration = 0.35f;
+
+float smoothProgress(float value)
+{
+    value = std::clamp(value, 0.0f, 1.0f);
+    return value * value * (3.0f - 2.0f * value);
+}
+} // namespace
+
 RidgeDashGame::RidgeDashGame()
 {
     _runSeed = static_cast<uint32_t>(std::time(nullptr));
@@ -206,6 +218,78 @@ void RidgeDashGame::playSfx(AudioSystem::Sfx id)
     _audio.play(id);
 }
 
+bool RidgeDashGame::exitTransitionPlaying() const
+{
+    return _exitTransitionPhase != ExitTransitionPhase::Idle;
+}
+
+bool RidgeDashGame::exitTransitionBlackout() const
+{
+    return _exitTransitionPhase == ExitTransitionPhase::BlackHold;
+}
+
+float RidgeDashGame::exitTransitionCollapse() const
+{
+    switch (_exitTransitionPhase) {
+        case ExitTransitionPhase::CollapseVertical:
+            return 0.62f * smoothProgress(_exitTransitionTimer / kExitCollapseVerticalDuration);
+        case ExitTransitionPhase::CollapseHorizontal:
+            return 0.62f + 0.38f * smoothProgress(_exitTransitionTimer / kExitCollapseHorizontalDuration);
+        case ExitTransitionPhase::BlackHold:
+            return 1.0f;
+        case ExitTransitionPhase::Idle:
+        default:
+            return 0.0f;
+    }
+}
+
+float RidgeDashGame::exitTransitionFlash() const
+{
+    switch (_exitTransitionPhase) {
+        case ExitTransitionPhase::CollapseVertical:
+        case ExitTransitionPhase::CollapseHorizontal:
+            return 1.0f;
+        default:
+            return 0.0f;
+    }
+}
+
+void RidgeDashGame::beginExitTransition()
+{
+    if (exitTransitionPlaying()) {
+        return;
+    }
+    _exitTransitionPhase = ExitTransitionPhase::CollapseVertical;
+    _exitTransitionTimer = 0.0f;
+}
+
+void RidgeDashGame::updateExitTransition(float dt)
+{
+    _exitTransitionTimer += dt;
+    switch (_exitTransitionPhase) {
+        case ExitTransitionPhase::CollapseVertical:
+            if (_exitTransitionTimer >= kExitCollapseVerticalDuration) {
+                _exitTransitionTimer -= kExitCollapseVerticalDuration;
+                _exitTransitionPhase = ExitTransitionPhase::CollapseHorizontal;
+            }
+            break;
+        case ExitTransitionPhase::CollapseHorizontal:
+            if (_exitTransitionTimer >= kExitCollapseHorizontalDuration) {
+                _exitTransitionTimer -= kExitCollapseHorizontalDuration;
+                _exitTransitionPhase = ExitTransitionPhase::BlackHold;
+            }
+            break;
+        case ExitTransitionPhase::BlackHold:
+            if (_exitTransitionTimer >= kExitBlackHoldDuration) {
+                // Keep the blackout phase active for this final rendered frame.
+                _quitRequested = true;
+            }
+            break;
+        case ExitTransitionPhase::Idle:
+            break;
+    }
+}
+
 void RidgeDashGame::destroyWorld()
 {
     if (b2World_IsValid(_worldId)) {
@@ -238,6 +322,12 @@ void RidgeDashGame::update(float dt)
     // its buffer never starves; the state flags handle muting.
     updateEngineAudio(dt);
     updateBgmAudio(dt);
+
+    // Freeze simulation and UI while the final frame collapses and fades out.
+    if (exitTransitionPlaying()) {
+        updateExitTransition(dt);
+        return;
+    }
 
     if (_runController.paused()) {
         updatePauseMenu(dt);
@@ -467,8 +557,16 @@ void RidgeDashGame::exitPauseMenu()
 
 void RidgeDashGame::requestGameExit()
 {
+    if (exitTransitionPlaying() || _quitRequested) {
+        return;
+    }
     submitRunRecord();
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+    playSfx(AudioSystem::Sfx::Fuel);
+    beginExitTransition();
+#else
     _quitRequested = true;
+#endif
 }
 
 void RidgeDashGame::submitRunRecord()

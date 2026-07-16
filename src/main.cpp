@@ -243,6 +243,39 @@ int main()
         }
     }
 
+    Shader exitTransitionShader{};
+    int exitTransitionCollapseLoc = -1;
+    int exitTransitionBlackoutLoc = -1;
+    int exitTransitionFlashLoc = -1;
+    bool exitTransitionLoaded = false;
+    const std::string exitTransitionCandidates[] = {
+        "assets/shaders/exit_transition.fs",
+        crtAppDir + "assets/shaders/exit_transition.fs",
+        crtAppDir + "../assets/shaders/exit_transition.fs",
+        crtAppDir + "../Resources/assets/shaders/exit_transition.fs",
+    };
+    for (const std::string& path : exitTransitionCandidates) {
+        if (FileExists(path.c_str())) {
+            exitTransitionShader = LoadShader(nullptr, path.c_str());
+            if (IsShaderValid(exitTransitionShader)) {
+                exitTransitionCollapseLoc = GetShaderLocation(exitTransitionShader, "uCollapse");
+                exitTransitionBlackoutLoc = GetShaderLocation(exitTransitionShader, "uBlackout");
+                exitTransitionFlashLoc = GetShaderLocation(exitTransitionShader, "uFlash");
+                exitTransitionLoaded = true;
+            }
+            break;
+        }
+    }
+
+    RenderTexture2D exitTransitionTarget{};
+    if (exitTransitionLoaded && IsRenderTextureValid(renderTarget)) {
+        exitTransitionTarget = LoadRenderTexture(renderTarget.texture.width, renderTarget.texture.height);
+        if (IsRenderTextureValid(exitTransitionTarget)) {
+            SetTextureFilter(exitTransitionTarget.texture, TEXTURE_FILTER_BILINEAR);
+            SetTextureWrap(exitTransitionTarget.texture, TEXTURE_WRAP_CLAMP);
+        }
+    }
+
     // Bloom is desktop-only and built as a half-resolution bright pass followed
     // by three more bilinear downsample levels. Upsampling them additively gives
     // a broad, smooth halo without a large sampling kernel in the CRT shader.
@@ -326,7 +359,16 @@ int main()
         game.setInterpolationEnabled(desktopFps == 0 || desktopFps > 60);
 #endif
 
-        while (!RidgeDashWindowShouldClose() && !game.shouldQuit()) {
+        while (!game.shouldQuit()) {
+#if defined(RIDGEDASH_DESKTOP_RENDER)
+            if (RidgeDashWindowShouldClose()) {
+                game.requestGameExit();
+            }
+#else
+            if (RidgeDashWindowShouldClose()) {
+                break;
+            }
+#endif
 #if defined(RIDGEDASH_DESKTOP_RENDER)
             if (game.consumeDisplayScaleRequest(displayOption)) {
                 applyDisplayOption(displayOption);
@@ -380,7 +422,37 @@ int main()
                 EndMode2D();
                 EndTextureMode();
 
+                Texture2D sceneTexture = renderTarget.texture;
 #if defined(RIDGEDASH_DESKTOP_RENDER)
+                if (game.exitTransitionPlaying() && exitTransitionLoaded &&
+                    IsRenderTextureValid(exitTransitionTarget)) {
+                    const float collapse = game.exitTransitionCollapse();
+                    const float blackout = game.exitTransitionBlackout() ? 1.0f : 0.0f;
+                    const float flash = game.exitTransitionFlash();
+                    SetShaderValue(exitTransitionShader, exitTransitionCollapseLoc, &collapse, SHADER_UNIFORM_FLOAT);
+                    SetShaderValue(exitTransitionShader, exitTransitionBlackoutLoc, &blackout, SHADER_UNIFORM_FLOAT);
+                    SetShaderValue(exitTransitionShader, exitTransitionFlashLoc, &flash, SHADER_UNIFORM_FLOAT);
+
+                    BeginTextureMode(exitTransitionTarget);
+                    ClearBackground(BLACK);
+                    BeginShaderMode(exitTransitionShader);
+                    DrawTexturePro(renderTarget.texture,
+                                   Rectangle{0.0f,
+                                             0.0f,
+                                             static_cast<float>(renderTarget.texture.width),
+                                             -static_cast<float>(renderTarget.texture.height)},
+                                   Rectangle{0.0f,
+                                             0.0f,
+                                             static_cast<float>(exitTransitionTarget.texture.width),
+                                             static_cast<float>(exitTransitionTarget.texture.height)},
+                                   Vector2{0.0f, 0.0f},
+                                   0.0f,
+                                   WHITE);
+                    EndShaderMode();
+                    EndTextureMode();
+                    sceneTexture = exitTransitionTarget.texture;
+                }
+
                 bool bloomReady = false;
                 if (crtEnabled && brightPassLoaded && loadBloomTargets(destWidth, destHeight)) {
                     // Extract highlights while scaling the scene to half the
@@ -389,11 +461,11 @@ int main()
                     BeginTextureMode(bloomTargets[0]);
                     ClearBackground(BLACK);
                     BeginShaderMode(brightPassShader);
-                    DrawTexturePro(renderTarget.texture,
+                    DrawTexturePro(sceneTexture,
                                    Rectangle{0.0f,
                                              0.0f,
-                                             static_cast<float>(renderTarget.texture.width),
-                                             -static_cast<float>(renderTarget.texture.height)},
+                                             static_cast<float>(sceneTexture.width),
+                                             -static_cast<float>(sceneTexture.height)},
                                    Rectangle{0.0f,
                                              0.0f,
                                              static_cast<float>(bloomTargets[0].texture.width),
@@ -470,18 +542,17 @@ int main()
                     }
                 }
 #endif
-                DrawTexturePro(renderTarget.texture,
-                               Rectangle{0.0f,
-                                         0.0f,
-                                         static_cast<float>(renderTarget.texture.width),
-                                         -static_cast<float>(renderTarget.texture.height)},
-                               Rectangle{static_cast<float>(destX),
-                                         static_cast<float>(destY),
-                                         static_cast<float>(destWidth),
-                                         static_cast<float>(destHeight)},
-                               Vector2{0.0f, 0.0f},
-                               0.0f,
-                               WHITE);
+                DrawTexturePro(
+                    sceneTexture,
+                    Rectangle{
+                        0.0f, 0.0f, static_cast<float>(sceneTexture.width), -static_cast<float>(sceneTexture.height)},
+                    Rectangle{static_cast<float>(destX),
+                              static_cast<float>(destY),
+                              static_cast<float>(destWidth),
+                              static_cast<float>(destHeight)},
+                    Vector2{0.0f, 0.0f},
+                    0.0f,
+                    WHITE);
 #if defined(RIDGEDASH_DESKTOP_RENDER)
                 if (crtEnabled) {
                     EndShaderMode();
@@ -513,6 +584,12 @@ int main()
 #endif
 #if defined(RIDGEDASH_DESKTOP_RENDER)
     unloadBloomTargets();
+    if (IsRenderTextureValid(exitTransitionTarget)) {
+        UnloadRenderTexture(exitTransitionTarget);
+    }
+    if (exitTransitionLoaded) {
+        UnloadShader(exitTransitionShader);
+    }
     if (brightPassLoaded) {
         UnloadShader(brightPassShader);
     }
