@@ -264,6 +264,98 @@ void drawSailboats(const Texture2D& sailboat, Vector2 camera, float day, uint32_
     }
 }
 
+// ── Ambient biome particles ────────────────────────────────────────────────
+// Generic "looping slot" particle renderer: no state, purely seed+time computed positions.
+// Particles cycle from top to bottom via fmod — no allocation/deallocation overhead.
+
+void drawLoopingParticles(uint32_t seed,
+                          float time,
+                          Vector2 camera,
+                          float parallax,
+                          float fallSpeed,
+                          float swayAmp,
+                          float swayFreq,
+                          int count,
+                          int pixelSize,
+                          Color color,
+                          float alpha)
+{
+    if (alpha <= 0.01f) {
+        return;
+    }
+
+    const float scrollX = camera.x * parallax;
+    constexpr float kSpawnHeight = kScreenHeight + 20.0f; // slightly beyond screen for natural looping
+
+    for (int i = 0; i < count; ++i) {
+        const uint32_t particleSeed = hash32(seed + static_cast<uint32_t>(i) * 0x9E3779B9U);
+        // Each slot has a fixed world-space base X and phase offset — never re-randomized.
+        const float baseWorldX = static_cast<float>(particleSeed % 400U) - 40.0f;
+        const float phase = random01(seed, i + 500) * kPi * 2.0f;
+        // Per-slot cycle offset so particles stagger, not fall in lockstep.
+        const float fallOffset = random01(seed, i + 700) * kSpawnHeight;
+
+        const float y = std::fmod(time * fallSpeed + fallOffset, kSpawnHeight) - 10.0f;
+        const float sway = std::sin(time * swayFreq + phase) * swayAmp;
+        const float worldX = baseWorldX + sway;
+
+        const int x = wrapToRange(static_cast<int>(std::round(worldX - scrollX)), kScreenWidth + 80) - 40;
+        const int yi = static_cast<int>(y);
+        if (yi < -4 || yi > kScreenHeight + 4) {
+            continue;
+        }
+
+        // Subtle size variation so not every particle looks identical.
+        const int size = pixelSize + static_cast<int>(particleSeed % 2U);
+        DrawRectangle(x, yi, size, size, withAlpha(color, alpha));
+    }
+}
+
+void drawAmbientSnowImpl(uint32_t seed, float time, Vector2 camera, float alpha, float day)
+{
+    const Color snowFar = mixColor(Color{200, 220, 232, 210}, Color{255, 255, 255, 235}, day);
+    const Color snowNear = mixColor(Color{215, 232, 240, 230}, Color{255, 255, 255, 255}, day);
+
+    // Far layer: slow, small, sparse
+    drawLoopingParticles(seed ^ 0x1111U, time, camera, 0.10f, 14.0f, 6.0f, 0.7f, 32, 1, snowFar, alpha * 0.7f);
+    // Near layer: fast, larger, denser — "right in front of the lens"
+    drawLoopingParticles(seed ^ 0x2222U, time, camera, 0.22f, 26.0f, 10.0f, 1.1f, 22, 2, snowNear, alpha);
+}
+
+void drawAmbientSandWindImpl(uint32_t seed, float time, Vector2 camera, float alpha, float day)
+{
+    const Color sandFar = mixColor(Color{150, 110, 68, 150}, Color{224, 178, 108, 170}, day);
+    const Color sandNear = mixColor(Color{168, 124, 74, 190}, Color{240, 196, 120, 210}, day);
+
+    // Sand barely falls — fallSpeed repurposed as horizontal drift speed.
+    // Low swayFreq + high swayAmp gives wind-blown lateral trails.
+    drawLoopingParticles(seed ^ 0x3333U, time, camera, 0.12f, 4.0f, 30.0f, 0.35f, 26, 1, sandFar, alpha * 0.6f);
+    drawLoopingParticles(seed ^ 0x4444U, time, camera, 0.25f, 6.0f, 46.0f, 0.5f, 18, 2, sandNear, alpha);
+}
+
+void drawAmbientDustImpl(uint32_t seed, float time, Vector2 camera, float alpha, float day)
+{
+    // Stone floating dust — sparse, slow, subtle. Not meant to steal focus.
+    const Color dust = mixColor(Color{120, 116, 108, 90}, Color{200, 196, 186, 110}, day);
+    drawLoopingParticles(seed ^ 0x5555U, time, camera, 0.06f, 3.0f, 4.0f, 0.4f, 18, 1, dust, alpha * 0.5f);
+}
+
+void drawAmbientMountainImpl(uint32_t seed, float time, Vector2 camera, float alpha, float day)
+{
+    // Green leaf/grass specks mixed with firefly-like glowing dots.
+    // Firefly glow is always visible (day and night), just shifts more yellow after dark.
+
+    // Far layer — grass/leaf bits drifting
+    const Color leafColor = mixColor(Color{65, 88, 42, 80}, Color{95, 225, 75, 175}, day);
+    drawLoopingParticles(seed ^ 0x6666U, time, camera, 0.08f, 7.0f, 10.0f, 0.5f, 18, 1, leafColor, alpha * 0.55f);
+
+    // Near layer — firefly glow dots: flea-bright green, extra luminous at night
+    const Color fireflyNight = Color{210, 245, 55, 250};
+    const Color fireflyDay = Color{110, 242, 110, 220};
+    const Color fireflyColor = mixColor(fireflyNight, fireflyDay, day);
+    drawLoopingParticles(seed ^ 0x7777U, time, camera, 0.18f, 4.0f, 16.0f, 0.65f, 18, 2, fireflyColor, alpha);
+}
+
 } // namespace
 
 void Environment::loadAssets()
@@ -390,6 +482,32 @@ void Environment::drawBackground(Vector2 camera, float distance) const
         biomeRendererFor(_targetBiome).drawHorizon(camera, day, 1.0f);
     }
 
+    // Ambient biome particles — crossfade in sync with biome transition, same as horizon strips.
+    auto drawBiomeParticles = [this, &camera, day](TerrainBiome biome, float weight) {
+        if (weight <= 0.01f)
+            return;
+        switch (biome) {
+            case TerrainBiome::Snow:
+                drawAmbientSnow(camera, day, weight);
+                break;
+            case TerrainBiome::Desert:
+                drawAmbientSandWind(camera, day, weight);
+                break;
+            case TerrainBiome::Stone:
+                drawAmbientDust(camera, day, weight);
+                break;
+            case TerrainBiome::Mountain:
+                drawAmbientMountain(camera, day, weight);
+                break;
+        }
+    };
+    if (_fromBiome != _targetBiome && _biomeBlend < 1.0f) {
+        drawBiomeParticles(_fromBiome, 1.0f - _biomeBlend);
+        drawBiomeParticles(_targetBiome, _biomeBlend);
+    } else {
+        drawBiomeParticles(_targetBiome, 1.0f);
+    }
+
     for (int i = 0; i < 8; ++i) {
         const float cloudWorldX = i * 72.0f + random01(_seed, i) * 46.0f;
         const int x = wrapToRange(static_cast<int>(std::round(cloudWorldX - camera.x * 0.18f)), kScreenWidth + 96) - 48;
@@ -399,6 +517,26 @@ void Environment::drawBackground(Vector2 camera, float distance) const
         const Color shade = mixColor(Color{96, 111, 124, 60}, Color{220, 234, 237, 132}, day);
         drawPixelCloud(x, y, variant, light, shade);
     }
+}
+
+void Environment::drawAmbientSnow(Vector2 camera, float day, float alpha) const
+{
+    drawAmbientSnowImpl(_seed, _time, camera, alpha, day);
+}
+
+void Environment::drawAmbientSandWind(Vector2 camera, float day, float alpha) const
+{
+    drawAmbientSandWindImpl(_seed, _time, camera, alpha, day);
+}
+
+void Environment::drawAmbientDust(Vector2 camera, float day, float alpha) const
+{
+    drawAmbientDustImpl(_seed, _time, camera, alpha, day);
+}
+
+void Environment::drawAmbientMountain(Vector2 camera, float day, float alpha) const
+{
+    drawAmbientMountainImpl(_seed, _time, camera, alpha, day);
 }
 
 } // namespace ridge_dash
