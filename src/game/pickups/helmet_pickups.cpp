@@ -69,8 +69,7 @@ void HelmetPickups::stream(RidgeDashGame& game, float targetX)
         }
         if (game._pickups.fuel().activeNear(_nextX, 6.5f) || game._pickups.coin().activeNear(_nextX, 5.5f) ||
             game._pickups.flea().activeInRange(_nextX - 5.8f, _nextX + 5.8f) ||
-            game._pickups.rocket().activeNear(_nextX, 6.5f) ||
-            game._pickups.snowman().activeNear(_nextX, 6.0f) ||
+            game._pickups.rocket().activeNear(_nextX, 6.5f) || game._pickups.snowman().activeNear(_nextX, 6.0f) ||
             game._pickups.giantFlea().activeNear(_nextX, 6.5f)) {
             _nextX += 8.5f;
             continue;
@@ -221,11 +220,17 @@ void HelmetPickups::draw(const RidgeDashGame& game) const
         }
 
         // Fallback: simple helmet pixel art.
-        DrawRectangle(ix - 5, iy - 5, 10, 3, Color{220, 220, 220, 255});   // top
-        DrawRectangle(ix - 6, iy - 2, 12, 5, Color{180, 180, 180, 255});    // dome
-        DrawRectangle(ix - 7, iy + 3, 14, 2, Color{140, 140, 140, 255});    // brim
-        DrawRectangle(ix - 3, iy - 3, 2, 2, Color{255, 220, 80, 255});      // highlight
+        DrawRectangle(ix - 5, iy - 5, 10, 3, Color{220, 220, 220, 255}); // top
+        DrawRectangle(ix - 6, iy - 2, 12, 5, Color{180, 180, 180, 255}); // dome
+        DrawRectangle(ix - 7, iy + 3, 14, 2, Color{140, 140, 140, 255}); // brim
+        DrawRectangle(ix - 3, iy - 3, 2, 2, Color{255, 220, 80, 255});   // highlight
     }
+}
+
+void HelmetPickups::forceSpawnAt(RidgeDashGame& game, float x)
+{
+    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
+    create(game, terrain);
 }
 
 } // namespace ridge_dash

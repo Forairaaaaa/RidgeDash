@@ -74,8 +74,7 @@ void GiantFleaPickups::stream(RidgeDashGame& game, float targetX)
         }
         if (game._pickups.fuel().activeNear(_nextX, 6.5f) || game._pickups.coin().activeNear(_nextX, 5.5f) ||
             game._pickups.flea().activeInRange(_nextX - 5.8f, _nextX + 5.8f) ||
-            game._pickups.rocket().activeNear(_nextX, 6.5f) ||
-            game._pickups.snowman().activeNear(_nextX, 6.0f) ||
+            game._pickups.rocket().activeNear(_nextX, 6.5f) || game._pickups.snowman().activeNear(_nextX, 6.0f) ||
             game._pickups.helmet().activeNear(_nextX, 6.5f)) {
             _nextX += 8.5f;
             continue;
@@ -249,8 +248,8 @@ void GiantFleaPickups::update(RidgeDashGame& game, float dt)
         if (_bouncesRemaining <= 0) {
             // All bounces used — detach with a finish burst.
             const b2Vec2 chassisPos = game._vehicle.chassisPosition();
-            game._pickups.effects().spawn({chassisPos.x, chassisPos.y - 0.3f}, PickupEffects::Kind::GiantFlea,
-                                          game._runSeed);
+            game._pickups.effects().spawn(
+                {chassisPos.x, chassisPos.y - 0.3f}, PickupEffects::Kind::GiantFlea, game._runSeed);
             _attached = false;
             _wasGrounded = false;
             return;
@@ -326,10 +325,9 @@ void GiantFleaPickups::draw(const RidgeDashGame& game) const
             drawSpriteCentered(game._sprites.giantFlea, p, 22.0f, 16.0f, angle);
         } else {
             // Fallback: bigger flea-like rectangle.
-            DrawRectanglePro(Rectangle{p.x, p.y, 22.0f, 14.0f}, Vector2{11.0f, 7.0f}, angle,
-                             Color{94, 239, 189, 255});
-            DrawRectanglePro(Rectangle{p.x + 8.0f, p.y - 2.0f, 8.0f, 8.0f}, Vector2{4.0f, 4.0f}, angle,
-                             Color{34, 95, 86, 255});
+            DrawRectanglePro(Rectangle{p.x, p.y, 22.0f, 14.0f}, Vector2{11.0f, 7.0f}, angle, Color{94, 239, 189, 255});
+            DrawRectanglePro(
+                Rectangle{p.x + 8.0f, p.y - 2.0f, 8.0f, 8.0f}, Vector2{4.0f, 4.0f}, angle, Color{34, 95, 86, 255});
         }
     }
 
@@ -374,6 +372,12 @@ void GiantFleaPickups::draw(const RidgeDashGame& game) const
             DrawRectangle(ix + 3, iy + 7, 3, 2, fadeColor(Color{210, 255, 239, 255}, 0.55f));
         }
     }
+}
+
+void GiantFleaPickups::forceSpawnAt(RidgeDashGame& game, float x)
+{
+    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
+    create(game, terrain);
 }
 
 } // namespace ridge_dash

@@ -14,6 +14,7 @@
 
 #include <box2d/box2d.h>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace ridge_dash {
@@ -56,6 +57,7 @@ public:
     bool activeInRange(float minX, float maxX) const;
     bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
+    void forceSpawnAt(RidgeDashGame& game, float x);
 
 private:
     struct Item {
@@ -85,6 +87,7 @@ public:
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
+    void forceSpawnAt(RidgeDashGame& game, float x);
 
 private:
     struct Item {
@@ -113,6 +116,7 @@ public:
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeInRange(float minX, float maxX) const;
     void draw(const RidgeDashGame& game) const;
+    void forceSpawnAt(RidgeDashGame& game, float x);
 
 private:
     struct Item {
@@ -151,6 +155,7 @@ public:
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
+    void forceSpawnAt(RidgeDashGame& game, float x);
 
 private:
     struct Item {
@@ -195,6 +200,7 @@ public:
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
+    void forceSpawnAt(RidgeDashGame& game, float x);
 
 private:
     struct Item {
@@ -237,6 +243,7 @@ public:
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
+    void forceSpawnAt(RidgeDashGame& game, float x);
 
 private:
     struct Item {
@@ -308,6 +315,7 @@ public:
     bool activeNear(float x, float distance) const;
     bool attached() const;
     void draw(const RidgeDashGame& game) const;
+    void forceSpawnAt(RidgeDashGame& game, float x);
 
 private:
     struct Item {
@@ -351,6 +359,7 @@ public:
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     bool activeNear(float x, float distance) const;
     void draw(const RidgeDashGame& game) const;
+    void forceSpawnAt(RidgeDashGame& game, float x);
 
 private:
     struct Item {
@@ -382,6 +391,7 @@ public:
     bool collectByShape(RidgeDashGame& game, b2ShapeId pickupShape, b2ShapeId otherShape);
     bool collectOverlaps(RidgeDashGame& game, const Vector2* points, int count, float speedBonus);
     void triggerSquid(uint32_t runSeed);
+    void forceSpawnTestPickup(RidgeDashGame& game, const std::string& type, float x);
     void draw(const RidgeDashGame& game) const;
     void drawEffects(const RidgeDashGame& game) const;
 

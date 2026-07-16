@@ -36,6 +36,7 @@ public:
     void burnFuel(float amount);
     void refillFuel();
     bool markHeadHit();
+    void resetCrashTimer();
 
     bool running() const;
     bool paused() const;

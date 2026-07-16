@@ -33,13 +33,13 @@ bool nearPoint(Vector2 a, Vector2 b, float distance)
 // Coin shape patterns. Points are built in a local frame where +x is forward and
 // +y is UP; the caller anchors and flips into world space (world y is down).
 enum class CoinShape {
-    Line,      // horizontal / sloped row
-    Wave,      // sine wave row
-    Circle,    // ring
-    Arch,      // upward arc (half-circle), good for jumps/rockets
-    Triangle,  // triangle outline
-    Diamond,   // diamond outline
-    Rect,      // rectangle outline
+    Line,     // horizontal / sloped row
+    Wave,     // sine wave row
+    Circle,   // ring
+    Arch,     // upward arc (half-circle), good for jumps/rockets
+    Triangle, // triangle outline
+    Diamond,  // diamond outline
+    Rect,     // rectangle outline
     Count
 };
 
@@ -202,15 +202,15 @@ void CoinPickups::stream(RidgeDashGame& game, float targetX)
             const CoinShape airShapes[] = {CoinShape::Arch, CoinShape::Circle, CoinShape::Wave, CoinShape::Diamond};
             shape = airShapes[std::uniform_int_distribution<int>(0, 3)(game._rng)];
         } else {
-            const CoinShape groundShapes[] = {CoinShape::Line, CoinShape::Wave, CoinShape::Triangle,
-                                              CoinShape::Rect, CoinShape::Diamond};
+            const CoinShape groundShapes[] = {
+                CoinShape::Line, CoinShape::Wave, CoinShape::Triangle, CoinShape::Rect, CoinShape::Diamond};
             shape = groundShapes[std::uniform_int_distribution<int>(0, 4)(game._rng)];
         }
 
         const float scale = scaleDist(game._rng);
         // Line/wave follow the slope; other shapes stay upright.
-        const float shapeSlope = (shape == CoinShape::Line || shape == CoinShape::Wave) ? clampf(slope, -1.2f, 1.2f)
-                                                                                        : 0.0f;
+        const float shapeSlope =
+            (shape == CoinShape::Line || shape == CoinShape::Wave) ? clampf(slope, -1.2f, 1.2f) : 0.0f;
         std::vector<Vector2> local = buildShapePoints(shape, scale, shapeSlope, game._rng);
         if (local.empty()) {
             _nextX += gapDist(game._rng);
@@ -387,6 +387,12 @@ void CoinPickups::draw(const RidgeDashGame& game) const
             DrawRectangleLines(ix - 4, iy - 4, 8, 8, Color{156, 104, 36, 255});
         }
     }
+}
+
+void CoinPickups::forceSpawnAt(RidgeDashGame& game, float x)
+{
+    const float y = game._terrain.heightAt(x);
+    createAt(game, {x, y - 0.8f});
 }
 
 } // namespace ridge_dash

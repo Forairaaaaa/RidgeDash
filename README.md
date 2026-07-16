@@ -102,9 +102,9 @@ RIDGEDASH_TARGET_FPS=unlimited ./dist/RidgeDash
 
 无论渲染帧率多少，物理帧率始终固定 60Hz，渲染会在物理步之间插值
 
-##### 地形调试
+##### 地形/道具调试
 
-调试地形/拾取物时，可在运行时强制指定某个地形剖面：
+调试地形时，可在运行时强制指定某个地形剖面：
 
 ```bash
 RIDGEDASH_TEST_TERRAIN=desert ./dist/RidgeDash
@@ -113,6 +113,16 @@ RIDGEDASH_TEST_TERRAIN=desert ./dist/RidgeDash
 支持的值包括 `mountain`、`stone`、`desert`、`snow`，以及精确的剖面名如 `rolling`、`ridges`、`steps`、`valley`
 
 留空则为正常随机地形
+
+调试道具时，可在开局强制生成一个目标道具：
+
+```bash
+RIDGEDASH_TEST_PICKUP=helmet ./dist/RidgeDash
+```
+
+支持的值：`fuel` `coin` `flea` `rocket` `cactus` `snowman` `giantflea` `helmet`
+
+可与 `RIDGEDASH_TEST_TERRAIN` 组合使用
 
 ### CardputerZero
 

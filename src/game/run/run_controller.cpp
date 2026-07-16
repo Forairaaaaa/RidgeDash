@@ -148,6 +148,11 @@ bool RunController::markHeadHit()
     return true;
 }
 
+void RunController::resetCrashTimer()
+{
+    _finishCrashTimer = 0.0f;
+}
+
 bool RunController::running() const
 {
     return _state == RunState::Running;

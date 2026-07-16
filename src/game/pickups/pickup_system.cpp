@@ -277,47 +277,83 @@ void RidgeDashGame::handleSensorEvents()
         return !_runController.gameOver() && _pickups.collectByShape(*this, pickupShape, otherShape);
     };
 
+    // Pass 1 — collect ALL pickups before any head-hit check, so a helmet
+    // picked up in the same frame (even from a later event in the array) is
+    // always available for rescue protection.
     for (int i = 0; i < events.beginCount; ++i) {
         const b2SensorBeginTouchEvent& event = events.beginEvents[i];
-        if (collectPickupEvent(event.sensorShapeId, event.visitorShapeId) ||
-            collectPickupEvent(event.visitorShapeId, event.sensorShapeId)) {
-            continue;
-        }
+        collectPickupEvent(event.sensorShapeId, event.visitorShapeId) ||
+            collectPickupEvent(event.visitorShapeId, event.sensorShapeId);
+    }
+
+    // Pass 2 — detect head hits.  By now all pickups have been collected.
+    for (int i = 0; i < events.beginCount; ++i) {
+        const b2SensorBeginTouchEvent& event = events.beginEvents[i];
 
         const bool headHit =
             (B2_ID_EQUALS(event.sensorShapeId, _vehicle.headShape()) && isTerrainShape(event.visitorShapeId)) ||
             (B2_ID_EQUALS(event.visitorShapeId, _vehicle.headShape()) && isTerrainShape(event.sensorShapeId));
-        if (headHit) {
-            // Skip head hits while invincible (post-helmet-rescue grace period).
-            if (_invincibleTimer > 0.0f) {
-                continue;
-            }
-            // Helmet revival: instead of game over, give the car a strong rescue bounce.
-            // Use a local flag so multiple terrain-segment touches in one frame don't
-            // consume the helmet on the first event and then trigger game over on the next.
-            if (_helmetActive && !_helmetRescuedThisFrame) {
-                _helmetActive = false;
-                _helmetRescuedThisFrame = true;
-                const b2Vec2 velocity = _vehicle.chassisVelocity();
-                // Kill most horizontal speed, keep a hint for inertia feel.
-                const float keepX = velocity.x * 0.12f;
-                // Upward bounce matching flea's effective range (~13-15 m/s).
-                const float upwardDelta =
-                    13.5f + std::max(0.0f, velocity.y) * 0.30f - std::max(0.0f, -velocity.y) * 0.06f;
-                const b2Vec2 deltaVelocity = {keepX - velocity.x, -clampf(upwardDelta, 9.5f, 15.0f)};
-                _vehicle.applyMainBodyDeltaVelocity(deltaVelocity, 1.0f, 1.0f, 1.0f);
-                _vehicle.applyChassisAngularImpulse((velocity.x >= 0.0f ? -1.0f : 1.0f) * 0.26f);
-                _vehicle.triggerDriverHitFlash();
-                const b2Vec2 headWorld = _vehicle.chassisWorldPoint(game_config::kDriverLocalPos);
-                _pickups.effects().spawn({headWorld.x, headWorld.y}, PickupEffects::Kind::Helmet, _runSeed);
-                playSfx(AudioSystem::Sfx::FleaJump); // Placeholder — replace with helmet SFX later.
-                // Brief invincibility so the car doesn't immediately re-trigger on the
-                // same terrain after bouncing up.
-                _invincibleTimer = 0.85f;
-            } else if (!_helmetRescuedThisFrame && _runController.markHeadHit()) {
-                _vehicle.triggerDriverHitFlash();
-            }
+        if (!headHit) {
+            continue;
         }
+
+        // Skip head hits while invincible (post-helmet-rescue grace period).
+        if (_invincibleTimer > 0.0f) {
+            continue;
+        }
+        // Helmet revival: instead of game over, give the car a strong rescue bounce.
+        // Use a local flag so multiple terrain-segment touches in one frame don't
+        // consume the helmet on the first event and then trigger game over on the next.
+        if (_helmetActive && !_helmetRescuedThisFrame) {
+            _helmetActive = false;
+            _helmetRescuedThisFrame = true;
+            const b2Vec2 velocity = _vehicle.chassisVelocity();
+            // Kill most horizontal speed, keep a hint for inertia feel.
+            // Floor at 0 so a fast backward roll doesn't trigger the
+            // very short rolling-backward death delay (0.2 s) after rescue.
+            float keepX = velocity.x * 0.12f;
+            if (keepX < 0.0f) {
+                keepX = 0.0f;
+            }
+            // Upward bounce matching flea's effective range (~13-15 m/s).
+            const float upwardDelta = 13.5f + std::max(0.0f, velocity.y) * 0.30f - std::max(0.0f, -velocity.y) * 0.06f;
+            const b2Vec2 deltaVelocity = {keepX - velocity.x, -clampf(upwardDelta, 9.5f, 15.0f)};
+            _vehicle.applyMainBodyDeltaVelocity(deltaVelocity, 1.0f, 1.0f, 1.0f);
+            _vehicle.applyChassisAngularImpulse((velocity.x >= 0.0f ? -1.0f : 1.0f) * 0.26f);
+            _vehicle.triggerDriverHitFlash();
+            const b2Vec2 headWorld = _vehicle.chassisWorldPoint(game_config::kDriverLocalPos);
+            _pickups.effects().spawn({headWorld.x, headWorld.y}, PickupEffects::Kind::Helmet, _runSeed);
+            playSfx(AudioSystem::Sfx::FleaJump); // Placeholder — replace with helmet SFX later.
+            // Brief invincibility so the car doesn't immediately re-trigger on the
+            // same terrain after bouncing up.
+            _invincibleTimer = 0.85f;
+            // Reset the crash timer so any pre-rescue upside-down / rolling-backward
+            // accumulation doesn't carry over and trigger game over immediately.
+            _runController.resetCrashTimer();
+        } else if (!_helmetRescuedThisFrame && _runController.markHeadHit()) {
+            _vehicle.triggerDriverHitFlash();
+        }
+    }
+}
+
+void PickupSystem::forceSpawnTestPickup(RidgeDashGame& game, const std::string& type, float x)
+{
+    if (type == "fuel") {
+        _fuel.forceSpawnAt(game, x);
+    } else if (type == "coin") {
+        _coin.forceSpawnAt(game, x);
+    } else if (type == "flea") {
+        _flea.forceSpawnAt(game, x);
+    } else if (type == "rocket") {
+        _rocket.forceSpawnAt(game, x);
+    } else if (type == "cactus") {
+        _cactus.forceSpawnAt(game, x);
+    } else if (type == "snowman") {
+        _snowman.forceSpawnAt(game, x);
+    } else if (type == "giantflea") {
+        _giantFlea.forceSpawnAt(game, x);
+    } else if (type == "helmet") {
+        _helmet.forceSpawnAt(game, x);
     }
 }
 

@@ -207,4 +207,10 @@ void FuelPickups::draw(const RidgeDashGame& game) const
     }
 }
 
+void FuelPickups::forceSpawnAt(RidgeDashGame& game, float x)
+{
+    const TerrainSample terrain = game._terrain.sampleAt(x, 12.0f, game._rng);
+    create(game, terrain);
+}
+
 } // namespace ridge_dash

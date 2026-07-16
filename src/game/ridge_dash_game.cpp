@@ -14,8 +14,11 @@
 #include "game/render_helpers.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <cstdlib>
 #include <ctime>
+#include <string>
 
 namespace ridge_dash {
 
@@ -115,6 +118,7 @@ void RidgeDashGame::reset()
     _terrain.reset(_startX, _worldId, _rng);
     createVehicle();
     _pickups.reset(*this);
+    spawnTestPickup();
     updateCamera(kPhysicsStep);
 }
 
@@ -261,8 +265,10 @@ void RidgeDashGame::update(float dt)
     _pickups.update(*this, dt);
     stepPhysics(dt);
     _helmetRescuedThisFrame = false;
-    handleSensorEvents();
+    // Collect distance-based pickups before sensor events so a helmet
+    // picked up this frame is always available for head-hit protection.
     updatePickupOverlaps();
+    handleSensorEvents();
     updateGroundState();
     updateDriverExpression(dt);
     updateTricks(dt);
@@ -521,6 +527,22 @@ void RidgeDashGame::updateCamera(float dt)
     if (carScreenY < kMinCarScreenY) {
         _camera.y = pos.y * kPixelsPerMeter - kMinCarScreenY;
     }
+}
+
+void RidgeDashGame::spawnTestPickup()
+{
+    const char* value = std::getenv("RIDGEDASH_TEST_PICKUP");
+    if (!value || value[0] == '\0') {
+        return;
+    }
+    std::string type = value;
+    for (char& c : type) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    // Place the test pickup just ahead of the player start position.
+    const float spawnX = _startX + 6.0f;
+    _pickups.forceSpawnTestPickup(*this, type, spawnX);
 }
 
 } // namespace ridge_dash

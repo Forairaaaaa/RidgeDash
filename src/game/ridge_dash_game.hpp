@@ -129,6 +129,7 @@ private:
     bool carValid() const;
     float carDistance() const;
     bool helmetActive() const;
+    void spawnTestPickup();
 
     b2WorldId _worldId = b2_nullWorldId;
     Vehicle _vehicle;
