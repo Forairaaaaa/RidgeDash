@@ -89,7 +89,7 @@ Replace `DRM` with `FBDEV` for framebuffer-only builds.
 4. Updates higher-level state: ground contact, tricks, run state, camera, environment biome, driver expression, engine/BGM audio
 5. Updates UI animations and pause menu
 
-`draw()` lives in **`src/game/render.cpp`** (separated from the update logic). It delegates to each subsystem: environment background → terrain → pickups → vehicle → pickup effects → HUD / start tips / game-over / pause overlays.
+`draw()` lives in **`src/game/render.cpp`** (separated from the update logic). It delegates to each subsystem: environment background → terrain → pickups → vehicle → pickup effects → HUD / start tips / game-over / pause overlays. Shared rendering helpers (camera math, coordinate transforms, common drawing routines) are in **`src/game/render_helpers.hpp/.cpp`**.
 
 ### Physics (Box2D v3.1.1)
 
@@ -97,7 +97,11 @@ Replace `DRM` with `FBDEV` for framebuffer-only builds.
 - **`Vehicle`** — 4 Box2D bodies: chassis, driver head (circle sensor), front wheel, rear wheel. Wheels connected via prismatic joints. Drive torque applied to wheels; air-control torque applied directly to chassis angular velocity.
 - **Render interpolation** — `Vehicle::recordPhysicsSnapshot()` captures prev/cur positions and rotations after each physics step. When rendering at >60fps, `draw()` lerps between snapshots using `renderAlpha()` for smooth motion.
 - **`TerrainSystem`** — Terrain as a chain of Box2D chain-shape bodies, generated procedurally from `TerrainProfile` parameters. Streams: points are appended ahead of the camera and trimmed behind.
-- **Pickups** — Each pickup type (fuel, coin, flea, rocket, cactus, snowman, giant flea, helmet, squid) creates Box2D sensor bodies placed on/above the terrain. Collection uses overlap tests (AABB query) against vehicle shapes plus a distance-based fallback (`collectOverlaps`). Placement is biome-aware: giant flea only spawns on stone, helmet only on snow.
+- **Pickups** — 9 standard pickup types (fuel, coin, flea, rocket, cactus, snowman, giant flea, helmet, magnet) plus squid (a standalone visual effect). All standard pickups share a **CRTP base** (`PickupCollection<Derived>` in `pickup_base.hpp`) that provides `clear()`, `trim()`, `collectByShape()`, `collectOverlaps()`, `activeNear()`, `activeInRange()`, `forceSpawnAt()`, and `createSensorBody()`. Each derived class only needs to provide an `Item` struct and hooks (`items()`, `nextX()`, `itemPos()`, `itemTrimX()`, `pickupDistance()`, `doCreate()`, `doCollect()`). `PickupSystem::forEachStandard()` uses a variadic template to dispatch over all 9 members — the canonical way to add a new pickup type. Collection uses overlap tests (AABB query) against vehicle shapes plus a distance-based fallback (`collectOverlaps`). Placement is biome-aware: giant flea only spawns on stone, helmet only on snow.
+- **Helmet revive** — When the helmet pickup is active, a head-hit that would normally end the run instead triggers a rescue: the helmet is consumed, the car gets brief invincibility (`_invincibleTimer`), and the run continues. The `_helmetRescuedThisFrame` flag prevents multi-segment head hits from triggering multiple rescues in one frame. The driver sprite switches to a helmeted variant while protected.
+- **Magnet pickup** — When collected, attracts nearby coins toward the car for `kMagnetDuration` seconds (configurable range `kMagnetAttractRadius` and speed `kMagnetAttractSpeed`). `CoinPickups::attractCoins()` handles the attraction physics.
+- **PickupEffects** — `PickupEffects` handles one-shot visual effects (puffs/particles) when pickups are collected or triggered. Its `Kind` enum covers all pickup types; each spawns a randomized burst. Effects update and draw independently from the pickup objects themselves.
+- **Dust** — `RidgeDashGame` tracks wheel-ground contact dust particles (`updateDust()` / `drawDust()`). Additional dust puffs spawn on flea jumps and other events through `PickupEffects`.
 
 ### World generation
 
@@ -151,6 +155,7 @@ Uses `smooth_ui_toolkit` for animated panel transitions (slide + fade). The UI l
 ### Platform abstraction (`src/platform/`)
 
 - **`raylib_compat.hpp`** — For FBDEV builds (no raylib headers available), provides stub type definitions (`Vector2`, `Rectangle`, `Color`, `Texture2D`) and declares the minimal raylib API surface the game needs. For real raylib builds, it includes `<raylib.h>` and sets up evdev input if `RIDGEDASH_USE_EVDEV_INPUT` is defined.
+- **`fbdev_raylib_compat.cpp`** — FBDEV framebuffer rendering implementation (no raylib dependency). Provides the actual drawing and window-surface logic for framebuffer-only targets.
 - **`native_window.hpp` + `native_window_mac.mm`** — macOS Cocoa hooks for native fullscreen (real fullscreen Space vs. raylib's borderless window). `native_window_stub.cpp` is the no-op implementation for other platforms.
 - **`evdev_input_compat.cpp`** — Reads keyboard events from `/dev/input/event*` devices; used on DRM builds where GLFW is unavailable.
 
