@@ -61,6 +61,14 @@ Replace `DRM` with `FBDEV` for framebuffer-only builds.
 # Self-contained: unpack anywhere and run ./RidgeDash.
 ```
 
+**Windows (.zip, cross-compiled from Linux):**
+```bash
+./packaging/windows/package_windows.sh
+# Requires: sudo apt install mingw-w64
+# Produces: dist/artifacts/RidgeDash-windows-x86_64.zip
+# Portable: unzip anywhere on Windows and double-click RidgeDash.exe.
+```
+
 **CardputerZero (.deb):**
 ```bash
 ./packaging/cardputer/package_cardputer.sh

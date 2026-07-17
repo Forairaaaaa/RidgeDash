@@ -174,6 +174,23 @@ dist/artifacts/RidgeDash-macos-arm64.zip
 dist/artifacts/RidgeDash-linux-x86_64.tar.gz
 ```
 
+### Windows（.zip）
+
+在 Linux 上用 MinGW-w64 交叉编译 Windows 版打包：
+
+```bash
+# 先安装 MinGW（如未安装）
+sudo apt install mingw-w64
+
+./packaging/windows/package_windows.sh
+```
+
+打包产物：
+
+```text
+dist/artifacts/RidgeDash-windows-x86_64.zip
+```
+
 ### CardputerZero（Deb）
 
 构建 CardputerZero 的 `.deb`：

@@ -142,6 +142,7 @@ endif()
 
 set_target_properties(${RIDGEDASH_BIN_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/runtime"
+    WIN32_EXECUTABLE TRUE
 )
 
 # --- Emscripten / Web link configuration ------------------------------------
