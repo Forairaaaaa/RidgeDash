@@ -11,7 +11,13 @@ A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill
 - 8Bit 风格音效、BGM 和动态引擎声
 - CRT 着色器，高帧率渲染插值，窗口动态调整
 
-【todo 各种图】
+<img width="865" height="471" alt="SCR-20260717-ugdj" src="https://github.com/user-attachments/assets/80d97ea3-a28d-473e-9511-5156e1890cad" />
+
+<img width="860" height="466" alt="SCR-20260717-ugku" src="https://github.com/user-attachments/assets/82233c8c-beb1-4a2f-99f6-7b32d80fa9e2" />
+
+<img width="863" height="468" alt="SCR-20260717-ugtg" src="https://github.com/user-attachments/assets/02c58aed-02a0-4128-ba3d-0dea7a5a093e" />
+
+<img width="865" height="465" alt="SCR-20260717-ugzf" src="https://github.com/user-attachments/assets/6ae9af8d-4027-489c-a65b-4248c1da99ed" />
 
 ## 操作
 
@@ -26,7 +32,7 @@ A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill
 
 贴图都是在 Figma 里画的（给自己上难度这一块），工程源文件在 `art.fig`，可以直接导入 Figma 打开
 
-【todo figma图】
+<img width="1261" height="533" alt="SCR-20260717-uife" src="https://github.com/user-attachments/assets/0ea1d06a-950f-47e4-b519-cb55f42b1bfb" />
 
 游戏背景的天空、大海、云朵、星星和山体是直接 raylib API 画的
 
@@ -35,8 +41,6 @@ A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill
 一直很喜欢动物井和小丑牌的 CRT 滤镜效果，这次刚好有机会试试～
 
 参考视频和代码：https://www.youtube.com/watch?v=28u6RoYiCWI
-
-【todo shader 对比】
 
 ## 音效
 
@@ -48,7 +52,7 @@ A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill
 
 音效文件夹 `assets/audio/sfx` 里都留有音效的 `.bfxr` 源数据格式，可以方便导回去调参修改
 
-x引擎动态音效：是从 [Freesound](https://freesound.org/people/EVRetro/sounds/519073/) 里截取了一段可 loop 的引擎音效，然后程序根据 input 和小车速度等状态，动态改变音量和音调
+引擎动态音效：是从 [Freesound](https://freesound.org/people/EVRetro/sounds/519073/) 里截取了一段可 loop 的引擎音效，然后程序根据 input 和小车速度等状态，动态改变音量和音调
 
 ### BGM
 
@@ -123,24 +127,6 @@ RIDGEDASH_TEST_PICKUP=helmet ./dist/RidgeDash
 支持的值：`fuel` `coin` `flea` `rocket` `cactus` `snowman` `giantflea` `helmet`
 
 可与 `RIDGEDASH_TEST_TERRAIN` 组合使用
-
-### CardputerZero
-
-#### 编译
-
-```bash
-cmake -S . -B build/cp0 -DRIDGEDASH_RAYLIB_PLATFORM=FBDEV
-cmake --build build/cp0 -j8
-```
-
-在 x86 Linux 上用 GNU aarch64 工具链交叉构建：
-
-```bash
-cmake -S . -B build/cp0 \
-  -DRIDGEDASH_RAYLIB_PLATFORM=DRM \
-  -DCMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake
-cmake --build build/cp0 -j8
-```
 
 ## 打包
 
