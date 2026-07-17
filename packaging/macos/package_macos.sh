@@ -49,12 +49,21 @@ ditto "${BUILT_ASSETS}" "${APP}/Contents/Resources/assets"
 ICONSET="${APP_STAGE}/${APP_NAME}.iconset"
 rm -rf "${ICONSET}"; mkdir -p "${ICONSET}"
 SRC_ICON="${SCRIPT_DIR}/icon.png"
-for size in 16 32 64 128 256 512; do
+# iconutil only accepts the standard iconset names. The 64 px representation
+# is supplied by icon_32x32@2x.png rather than a separate icon_64x64.png.
+for size in 16 32 128 256 512; do
     sips -z "${size}" "${size}" "${SRC_ICON}" --out "${ICONSET}/icon_${size}x${size}.png" >/dev/null
     double=$((size * 2))
     sips -z "${double}" "${double}" "${SRC_ICON}" --out "${ICONSET}/icon_${size}x${size}@2x.png" >/dev/null
 done
-iconutil -c icns "${ICONSET}" -o "${APP}/Contents/Resources/${APP_NAME}.icns"
+ICON_RESOURCE="${APP_NAME}.icns"
+if ! iconutil -c icns "${ICONSET}" -o "${APP}/Contents/Resources/${ICON_RESOURCE}"; then
+    # Some iconutil versions reject otherwise valid iconsets. Keep packaging
+    # functional and let Launch Services use the source PNG in that case.
+    echo "Warning: iconutil rejected the iconset; using PNG app icon." >&2
+    ICON_RESOURCE="${APP_NAME}.png"
+    install -m 644 "${SRC_ICON}" "${APP}/Contents/Resources/${ICON_RESOURCE}"
+fi
 rm -rf "${ICONSET}"
 
 # 4. Info.plist.
@@ -69,7 +78,7 @@ cat >"${APP}/Contents/Info.plist" <<EOF
     <key>CFBundleVersion</key><string>${VERSION}</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
     <key>CFBundleExecutable</key><string>${BIN_NAME}</string>
-    <key>CFBundleIconFile</key><string>${APP_NAME}</string>
+    <key>CFBundleIconFile</key><string>${ICON_RESOURCE}</string>
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>LSMinimumSystemVersion</key><string>11.0</string>
     <key>NSHighResolutionCapable</key><true/>

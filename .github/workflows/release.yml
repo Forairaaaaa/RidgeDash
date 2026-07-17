@@ -1,0 +1,156 @@
+name: Build & Publish Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify-version:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify tag matches project version
+        shell: bash
+        run: |
+          project_version="$(sed -nE 's/^project\(RidgeDash VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt)"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [[ -z "${project_version}" || "${tag_version}" != "${project_version}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match CMake project version ${project_version:-<missing>}." >&2
+            exit 1
+          fi
+
+  package-linux:
+    needs: verify-version
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake \
+            libasound2-dev libgl1-mesa-dev libx11-dev libxcursor-dev \
+            libxi-dev libxinerama-dev libxrandr-dev
+
+      - name: Fetch dependencies
+        run: python3 fetch_repos.py
+
+      - name: Package Linux
+        run: packaging/linux/package_linux.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-package
+          path: dist/artifacts/*
+          if-no-files-found: error
+
+  package-windows:
+    needs: verify-version
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cross-compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake mingw-w64 zip
+
+      - name: Fetch dependencies
+        run: python3 fetch_repos.py
+
+      - name: Package Windows
+        run: packaging/windows/package_windows.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-package
+          path: dist/artifacts/*
+          if-no-files-found: error
+
+  package-macos:
+    needs: verify-version
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fetch dependencies
+        run: python3 fetch_repos.py
+
+      - name: Package macOS
+        run: packaging/macos/package_macos.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-package
+          path: dist/artifacts/*
+          if-no-files-found: error
+
+  package-cardputer:
+    needs: verify-version
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake dpkg-dev \
+            libasound2-dev libdrm-dev libegl1-mesa-dev libgbm-dev libgles2-mesa-dev
+
+      - name: Fetch dependencies
+        run: python3 fetch_repos.py
+
+      - name: Package CardputerZero
+        run: packaging/cardputer/package_cardputer.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cardputer-package
+          path: dist/artifacts/*
+          if-no-files-found: error
+
+  publish:
+    needs:
+      - package-linux
+      - package-windows
+      - package-macos
+      - package-cardputer
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-package"
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        working-directory: dist
+        run: sha256sum * > SHA256SUMS.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" dist/* --verify-tag --generate-notes
