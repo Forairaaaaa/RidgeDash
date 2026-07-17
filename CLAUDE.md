@@ -54,6 +54,13 @@ Replace `DRM` with `FBDEV` for framebuffer-only builds.
 # Produces: dist/artifacts/RidgeDash-macos-arm64.zip
 ```
 
+**Desktop Linux (.tar.gz):**
+```bash
+./packaging/linux/package_linux.sh
+# Produces: dist/artifacts/RidgeDash-linux-x86_64.tar.gz
+# Self-contained: unpack anywhere and run ./RidgeDash.
+```
+
 **CardputerZero (.deb):**
 ```bash
 ./packaging/cardputer/package_cardputer.sh

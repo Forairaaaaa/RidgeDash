@@ -160,6 +160,20 @@ dist/artifacts/RidgeDash-macos-arm64.zip
 
 该 app 仅 arm64、**未签名**，所以首次打开需要右键 → 打开（或执行`xattr -dr com.apple.quarantine RidgeDash.app`）以绕过 Gatekeeper
 
+### Linux（.tar.gz）
+
+构建 Linux 桌面版打包：
+
+```bash
+./packaging/linux/package_linux.sh
+```
+
+打包产物：
+
+```text
+dist/artifacts/RidgeDash-linux-x86_64.tar.gz
+```
+
 ### CardputerZero（Deb）
 
 构建 CardputerZero 的 `.deb`：
