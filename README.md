@@ -174,6 +174,20 @@ dist/artifacts/RidgeDash-macos-arm64.zip
 dist/artifacts/RidgeDash-linux-x86_64.tar.gz
 ```
 
+这是可移动的目录包，但仍依赖目标系统提供 glibc、图形和音频运行库。为获得更好的发行版兼容性，
+请在计划支持的最旧 Linux 发行版上构建。脚本会用 `ldd` 检查是否存在缺失依赖，并报告产物要求的
+最高 glibc 符号版本。
+
+解压后可直接运行 `./RidgeDash`。如需添加当前用户的应用启动器：
+
+```bash
+./install_desktop.sh
+# 移除启动器：
+./install_desktop.sh --uninstall
+```
+
+移动解压目录后需要重新运行安装脚本，以刷新启动器中的绝对路径。
+
 ### Windows（.zip）
 
 在 Linux 上用 MinGW-w64 交叉编译 Windows 版打包：
@@ -190,6 +204,8 @@ sudo apt install mingw-w64
 ```text
 dist/artifacts/RidgeDash-windows-x86_64.zip
 ```
+
+打包脚本会检查生成程序的 MinGW 运行库依赖，并在需要时自动附带对应 DLL。
 
 ### CardputerZero（Deb）
 
@@ -222,4 +238,3 @@ RIDGEDASH_RENDER=fbdev RidgeDash
 ```text
 dist/artifacts/m5cardputerzero-ridgedash_x.x.x_m5stack1_arm64.deb
 ```
-

@@ -16,11 +16,36 @@
 #include <fstream>
 #include <string>
 
+#if defined(_WIN32)
+#include <shlobj.h>
+#endif
+
 namespace ridge_dash {
 namespace {
 
 std::filesystem::path stateDir()
 {
+#if defined(_WIN32)
+    wchar_t localAppData[MAX_PATH] = {};
+    if (SUCCEEDED(SHGetFolderPathW(
+            nullptr, CSIDL_LOCAL_APPDATA | CSIDL_FLAG_CREATE, nullptr, SHGFP_TYPE_CURRENT, localAppData))) {
+        return std::filesystem::path(localAppData) / L"RidgeDash";
+    }
+
+    // HOME is normally not defined for applications launched from Windows
+    // Explorer. Keep environment lookups as a fallback for unusual shells.
+    if (const char* localAppData = std::getenv("LOCALAPPDATA")) {
+        if (localAppData[0] != '\0') {
+            return std::filesystem::path(localAppData) / "RidgeDash";
+        }
+    }
+    if (const char* appData = std::getenv("APPDATA")) {
+        if (appData[0] != '\0') {
+            return std::filesystem::path(appData) / "RidgeDash";
+        }
+    }
+#endif
+
     if (const char* stateHome = std::getenv("XDG_STATE_HOME")) {
         if (stateHome[0] != '\0') {
             return std::filesystem::path(stateHome) / "ridgedash";

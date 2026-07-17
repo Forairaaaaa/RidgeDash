@@ -58,7 +58,9 @@ Replace `DRM` with `FBDEV` for framebuffer-only builds.
 ```bash
 ./packaging/linux/package_linux.sh
 # Produces: dist/artifacts/RidgeDash-linux-x86_64.tar.gz
-# Self-contained: unpack anywhere and run ./RidgeDash.
+# Portable directory: unpack and run ./RidgeDash.
+# Build on the oldest supported distro; system glibc/graphics/audio libraries are required.
+# Run ./install_desktop.sh inside the package for per-user launcher integration.
 ```
 
 **Windows (.zip, cross-compiled from Linux):**
@@ -146,7 +148,8 @@ States: `Ready` → `Running` → `Paused` / `GameOver`.
 
 ### Save data (`src/game/run/save_data.hpp/.cpp`)
 
-Two persisted records stored under `$XDG_STATE_HOME/ridgedash/` (falls back to `~/.local/state/ridgedash/`):
+Two persisted records are stored under `$XDG_STATE_HOME/ridgedash/` on Unix (falling back to
+`~/.local/state/ridgedash/`) and `%LOCALAPPDATA%/RidgeDash/` on Windows:
 
 - **`GameRecords`** — best-ever score, coins, flips, frontFlips, backFlips → `records.txt`
 - **`GameSettings`** — displayScale, crtEnabled, bgmOn, sfxOn → `settings.txt`
