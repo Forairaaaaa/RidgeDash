@@ -25,9 +25,9 @@ namespace ridge_dash {
 using namespace game_config;
 
 namespace {
-constexpr float kExitCollapseVerticalDuration = 0.16f;
-constexpr float kExitCollapseHorizontalDuration = 0.12f;
-constexpr float kExitBlackHoldDuration = 0.35f;
+constexpr float kExitCollapseVerticalDuration = 0.14f;
+constexpr float kExitCollapseHorizontalDuration = 0.10f;
+constexpr float kExitBlackHoldDuration = 0.25f;
 constexpr float kResetDissolveDuration = 0.22f;
 
 float smoothProgress(float value)
