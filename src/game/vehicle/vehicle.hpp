@@ -62,6 +62,8 @@ public:
         bool helmetActive = false;
         bool interpolate = false;
         float alpha = 1.0f;
+        Texture2D magnetSmall{};
+        bool magnetActive = false;
     };
 
     void reset();

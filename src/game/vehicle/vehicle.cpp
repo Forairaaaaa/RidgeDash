@@ -645,6 +645,24 @@ void Vehicle::draw(const DrawContext& context) const
                          Color{116, 42, 45, 255});
     }
 
+    // --- Draw attached magnet on the car when active (between body and wheels) ---
+    if (context.magnetActive) {
+        const b2Vec2 magnetPos = renderChassisWorldPoint({-0.386f, 0.151f}, interp, alpha);
+        Vector2 mp = vehicleWorldToScreen(magnetPos, context.camera);
+        if (interp) {
+            mp.y += kBodyVisualYOffset;
+        } else {
+            mp.x = std::round(mp.x);
+            mp.y = std::round(mp.y + kBodyVisualYOffset);
+        }
+        const float magnetAngle = renderChassisAngleDeg(interp, alpha);
+        if (textureLoaded(context.magnetSmall)) {
+            drawSpriteCentered(context.magnetSmall, mp, 16.0f, 7.0f, magnetAngle);
+        } else {
+            DrawRectanglePro(Rectangle{mp.x, mp.y, 14.0f, 6.0f}, Vector2{7.0f, 3.0f}, magnetAngle, Color{220, 220, 80, 255});
+        }
+    }
+
     auto drawWheel = [&](b2BodyId wheelId, const BodySnapshot& snapshot) {
         if (!b2Body_IsValid(wheelId)) {
             return;
@@ -1002,6 +1020,8 @@ void RidgeDashGame::drawVehicle() const
     context.gameOver = _runController.gameOver();
     context.headHit = _runController.headHit();
     context.helmetActive = _helmetActive;
+    context.magnetSmall = _sprites.magnetSmall;
+    context.magnetActive = _pickups.magnet().active();
     context.interpolate = _interpolate;
     context.alpha = _interpolate ? clampf(_physicsRemainder / kPhysicsStep, 0.0f, 1.0f) : 1.0f;
     _vehicle.draw(context);

@@ -153,26 +153,6 @@ bool MagnetPickups::active() const
 
 void MagnetPickups::draw(const RidgeDashGame& game) const
 {
-    // --- Draw attached magnet on the car when active ---
-    if (_timer > 0.0f && game.carValid()) {
-        const bool interp = game.renderInterpolation();
-        const float alpha = game.renderAlpha();
-        const b2Vec2 magnetPos = game._vehicle.renderChassisWorldPoint({-0.10f, 0.58f}, interp, alpha);
-        Vector2 p = game.worldToScreen(magnetPos);
-        if (interp) {
-            p.y += kBodyVisualYOffset;
-        } else {
-            p.x = std::round(p.x);
-            p.y = std::round(p.y + kBodyVisualYOffset);
-        }
-        const float angle = game._vehicle.renderChassisAngleDeg(interp, alpha);
-        if (textureLoaded(game._sprites.magnetSmall)) {
-            drawSpriteCentered(game._sprites.magnetSmall, p, 16.0f, 7.0f, angle);
-        } else {
-            DrawRectanglePro(Rectangle{p.x, p.y, 14.0f, 6.0f}, Vector2{7.0f, 3.0f}, angle, Color{220, 220, 80, 255});
-        }
-    }
-
     // --- Draw idle world items ---
     for (const Item& item : _items) {
         if (!item.active) {
