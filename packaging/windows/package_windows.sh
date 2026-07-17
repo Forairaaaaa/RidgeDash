@@ -15,8 +15,10 @@ CMAKE_BIN="${CMAKE:-cmake}"
 CMAKE_BUILD_TYPE="${CMAKE_BUILD_TYPE:-Release}"
 PARALLEL="${PARALLEL:-$(nproc 2>/dev/null || echo 4)}"
 TOOLCHAIN_FILE="${ROOT_DIR}/cmake/x86_64-w64-mingw32.cmake"
+MINGW_CC="x86_64-w64-mingw32-gcc-posix"
+MINGW_CXX="x86_64-w64-mingw32-g++-posix"
 
-for tool in "${CMAKE_BIN}" x86_64-w64-mingw32-gcc x86_64-w64-mingw32-g++ x86_64-w64-mingw32-objdump zip; do
+for tool in "${CMAKE_BIN}" "${MINGW_CC}" "${MINGW_CXX}" x86_64-w64-mingw32-objdump zip; do
     command -v "${tool}" >/dev/null 2>&1 || { echo "Required tool not found: ${tool}" >&2; exit 1; }
 done
 
@@ -48,7 +50,7 @@ cp -R "${BUILT_ASSETS}" "${PKG_STAGE}/${APP_NAME}/assets"
 DLL_IMPORTS="$(x86_64-w64-mingw32-objdump -p "${BUILT_BIN}" | sed -n 's/^[[:space:]]*DLL Name: //p')"
 for dll in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do
     if grep -Fqi "${dll}" <<<"${DLL_IMPORTS}"; then
-        dll_path="$(x86_64-w64-mingw32-g++ -print-file-name="${dll}")"
+        dll_path="$("${MINGW_CXX}" -print-file-name="${dll}")"
         [[ -f "${dll_path}" ]] || { echo "Required MinGW runtime DLL not found: ${dll}" >&2; exit 1; }
         install -m 755 "${dll_path}" "${PKG_STAGE}/${APP_NAME}/${dll}"
     fi
