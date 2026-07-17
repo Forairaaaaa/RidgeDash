@@ -48,12 +48,13 @@ void RidgeDashGame::draw() const
                                             _pauseMenu.sfxOn(),
                                             static_cast<int>(_pauseMenu.menuLevel())});
     }
-    if (_runController.gameOver() && _runController.gameOverTimer() >= 2.0f) {
-        _ui.drawGameOver(GameUi::RunSummaryView{_runStats.score(),
-                                                _runStats.coins(),
-                                                _runStats.flips(),
-                                                _runStats.newRecord(),
-                                                std::max(0.0f, _runController.gameOverTimer() - 2.0f)});
+    if (_runController.gameOver() && _runController.gameOverTimer() >= kGameOverSummaryDelay) {
+        _ui.drawGameOver(
+            GameUi::RunSummaryView{_runStats.score(),
+                                   _runStats.coins(),
+                                   _runStats.flips(),
+                                   _runStats.newRecord(),
+                                   std::max(0.0f, _runController.gameOverTimer() - kGameOverSummaryDelay)});
     }
 }
 

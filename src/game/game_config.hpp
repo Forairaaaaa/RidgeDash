@@ -81,6 +81,7 @@ constexpr int kFlipBonusScore = 100;      // back flip score
 constexpr int kFrontFlipBonusScore = 150; // front flip score (1.5x, harder to land)
 constexpr float kFlipBonusAngle = 4.36f;
 constexpr float kScorePopupDuration = 0.85f;
+constexpr float kGameOverSummaryDelay = 1.2f;
 constexpr float kMaxFuel = 100.0f;
 constexpr float kFuelBurnPerSecond = 10.0f;
 constexpr float kThrottleSpeed = 37.0f;

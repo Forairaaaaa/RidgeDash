@@ -215,7 +215,7 @@ void GameUi::updateAnimations(float dt, bool gameOver, float gameOverTimer)
         _startTipsExiting = false;
     }
 
-    if (gameOver && gameOverTimer >= 2.0f && !_gameOverPanelShown) {
+    if (gameOver && gameOverTimer >= kGameOverSummaryDelay && !_gameOverPanelShown) {
         startGameOverAnimation();
     }
 
