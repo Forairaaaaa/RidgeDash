@@ -1,16 +1,18 @@
-name: Build & Publish Release
+name: Build Release Assets
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-assets-${{ github.event.release.id }}
   cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name }}
 
 jobs:
   verify-version:
@@ -18,14 +20,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Verify tag matches project version
         shell: bash
         run: |
           project_version="$(sed -nE 's/^project\(RidgeDash VERSION ([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' CMakeLists.txt)"
-          tag_version="${GITHUB_REF_NAME#v}"
+          tag_version="${RELEASE_TAG#v}"
           if [[ -z "${project_version}" || "${tag_version}" != "${project_version}" ]]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match CMake project version ${project_version:-<missing>}." >&2
+            echo "Tag ${RELEASE_TAG} does not match CMake project version ${project_version:-<missing>}." >&2
             exit 1
           fi
 
@@ -35,6 +39,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install build dependencies
         run: |
@@ -63,6 +69,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install cross-compiler
         run: |
@@ -88,6 +96,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Fetch dependencies
         run: python3 fetch_repos.py
@@ -108,6 +118,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install build dependencies
         run: |
@@ -150,7 +162,7 @@ jobs:
         working-directory: dist
         run: sha256sum * > SHA256SUMS.txt
 
-      - name: Create GitHub Release
+      - name: Upload assets to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" dist/* --verify-tag --generate-notes
+        run: gh release upload "${RELEASE_TAG}" dist/* --clobber
