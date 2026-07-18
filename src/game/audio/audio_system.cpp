@@ -422,7 +422,7 @@ void AudioSystem::updateEngine(float dt, const EngineState& state)
 
 } // namespace ridge_dash
 
-#else // !RIDGEDASH_ENABLE_AUDIO — no-op on DRM/FBDEV
+#elif !defined(RIDGEDASH_3DS) // No-op on platforms without an audio backend.
 
 namespace ridge_dash {
 

@@ -78,7 +78,12 @@ public:
     bool sfxMuted() const;
 
 private:
-#if defined(RIDGEDASH_ENABLE_AUDIO)
+#if defined(RIDGEDASH_3DS)
+    struct ThreeDsAudioState;
+    ThreeDsAudioState* _threeDs = nullptr;
+    bool _bgmMuted = false;
+    bool _sfxMuted = false;
+#elif defined(RIDGEDASH_ENABLE_AUDIO)
     void loadSfxGroup(Sfx id, std::initializer_list<const char*> files);
     void stopBgm();
     // Next track from a category's shuffle bag: plays every track once (in a random

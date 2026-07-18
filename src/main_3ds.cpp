@@ -3,8 +3,14 @@
 
 #include <core/hal/hal.hpp>
 
+#include <cstdio>
+
 int main()
 {
+    if (RidgeDashEnable3dslinkStdio()) {
+        std::puts("RidgeDash connected to 3dslink");
+    }
+
     SetConfigFlags(FLAG_VSYNC_HINT);
     InitWindow(RIDGEDASH_SCREEN_WIDTH, RIDGEDASH_SCREEN_HEIGHT, "RidgeDash");
     if (!IsWindowReady()) {
@@ -21,7 +27,6 @@ int main()
     {
         ridge_dash::RidgeDashGame game;
         game.setBgmOn(false);
-        game.setSfxOn(false);
 
         while (!game.shouldQuit() && !RidgeDashWindowShouldClose()) {
             game.update(GetFrameTime());

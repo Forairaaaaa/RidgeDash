@@ -101,6 +101,7 @@ bool FileExists(const char* fileName);
 const char* GetApplicationDirectory();
 const char* TextFormat(const char* text, ...);
 unsigned int RidgeDashPlatformTimeMs();
+bool RidgeDashEnable3dslinkStdio();
 
 inline int RidgeDashDefaultRenderScale()
 {

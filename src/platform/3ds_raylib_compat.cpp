@@ -599,4 +599,9 @@ unsigned int RidgeDashPlatformTimeMs()
     return static_cast<unsigned int>(osGetTime());
 }
 
+bool RidgeDashEnable3dslinkStdio()
+{
+    return link3dsStdio() >= 0;
+}
+
 #endif // RIDGEDASH_3DS

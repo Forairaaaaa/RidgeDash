@@ -8,8 +8,11 @@ function(ridgedash_configure_3ds_assets target_name)
     set(font_png "${CMAKE_CURRENT_BINARY_DIR}/generated/default_font.png")
     set(font_manifest "${CMAKE_CURRENT_BINARY_DIR}/generated/font.t3s")
     set(font_sheet "${romfs_dir}/gfx/font.t3x")
+    set(audio_stamp "${romfs_dir}/audio/.stamp")
     file(GLOB sprite_sources CONFIGURE_DEPENDS "${RIDGEDASH_ROOT}/assets/sprites/*.png")
+    file(GLOB sfx_sources CONFIGURE_DEPENDS "${RIDGEDASH_ROOT}/assets/audio/sfx/*.wav")
     file(MAKE_DIRECTORY "${romfs_dir}/gfx")
+    file(REMOVE_RECURSE "${romfs_dir}/audio/music")
 
     set(RIDGEDASH_3DS_FONT_PNG "${font_png}")
     configure_file("${RIDGEDASH_ROOT}/packaging/3ds/font.t3s.in" "${font_manifest}" @ONLY)
@@ -46,7 +49,21 @@ function(ridgedash_configure_3ds_assets target_name)
         COMMENT "Packing RidgeDash sprites for Citro2D"
         VERBATIM
     )
-    add_custom_target(${target_name}_3ds_assets DEPENDS "${sprite_sheet}" "${font_sheet}")
+
+    add_custom_command(
+        OUTPUT "${audio_stamp}"
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${romfs_dir}/audio/sfx"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${RIDGEDASH_ROOT}/assets/audio/engine_loop.wav"
+                "${romfs_dir}/audio/engine_loop.wav"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${sfx_sources} "${romfs_dir}/audio/sfx"
+        COMMAND ${CMAKE_COMMAND} -E touch "${audio_stamp}"
+        DEPENDS "${RIDGEDASH_ROOT}/assets/audio/engine_loop.wav" ${sfx_sources}
+        COMMENT "Copying 3DS WAV audio into RomFS"
+        VERBATIM
+    )
+
+    add_custom_target(${target_name}_3ds_assets DEPENDS "${sprite_sheet}" "${font_sheet}" "${audio_stamp}")
     add_dependencies(${target_name} ${target_name}_3ds_assets)
 
     set(smdh_file "${CMAKE_CURRENT_BINARY_DIR}/${target_name}.smdh")
