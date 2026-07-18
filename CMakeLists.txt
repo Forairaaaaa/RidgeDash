@@ -11,8 +11,8 @@ set(RIDGEDASH_BIN_NAME "RidgeDash" CACHE STRING "Output executable name")
 if(RIDGEDASH_BIN_NAME STREQUAL "M5CardputerZero-RidgeDash")
     set(RIDGEDASH_BIN_NAME "RidgeDash" CACHE STRING "Output executable name" FORCE)
 endif()
-set(RIDGEDASH_RAYLIB_PLATFORM "Desktop" CACHE STRING "Render platform: Desktop, Web, DRM, or FBDEV")
-set_property(CACHE RIDGEDASH_RAYLIB_PLATFORM PROPERTY STRINGS Desktop Web DRM FBDEV)
+set(RIDGEDASH_RAYLIB_PLATFORM "Desktop" CACHE STRING "Render platform: Desktop, Web, DRM, FBDEV, or 3DS")
+set_property(CACHE RIDGEDASH_RAYLIB_PLATFORM PROPERTY STRINGS Desktop Web DRM FBDEV 3DS)
 option(RIDGEDASH_COPY_TO_DIST "Copy build outputs into the repository dist directory" ON)
 
 set(RIDGEDASH_ROOT "${CMAKE_CURRENT_LIST_DIR}")
@@ -27,12 +27,14 @@ set(RIDGEDASH_PLATFORM_FILE "${RIDGEDASH_ROOT}/cmake/platforms/${RIDGEDASH_RAYLI
 if(NOT EXISTS "${RIDGEDASH_PLATFORM_FILE}")
     message(FATAL_ERROR
         "Unsupported RIDGEDASH_RAYLIB_PLATFORM='${RIDGEDASH_RAYLIB_PLATFORM}'. "
-        "Expected Desktop, Web, DRM, or FBDEV."
+        "Expected Desktop, Web, DRM, FBDEV, or 3DS."
     )
 endif()
 include("${RIDGEDASH_PLATFORM_FILE}")
 
-if(UNIX AND NOT APPLE)
+if(RIDGEDASH_PLATFORM_IS_3DS)
+    set(RIDGEDASH_SYSTEM_LIBS)
+elseif(UNIX AND NOT APPLE)
     list(APPEND RIDGEDASH_SYSTEM_LIBS m)
 endif()
 
@@ -46,6 +48,10 @@ set(BOX2D_SAMPLES OFF CACHE BOOL "" FORCE)
 set(BOX2D_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(BOX2D_UNIT_TESTS OFF CACHE BOOL "" FORCE)
 set(BOX2D_VALIDATE OFF CACHE BOOL "" FORCE)
+if(RIDGEDASH_PLATFORM_IS_3DS)
+    set(BOX2D_DISABLE_SIMD ON CACHE BOOL "" FORCE)
+    set(SMOOTH_UI_TOOLKIT_ENABLE_DEFAULT_HAL OFF CACHE BOOL "" FORCE)
+endif()
 set(SMOOTH_UI_TOOLKIT_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
 set(SMOOTH_UI_TOOLKIT_BUILD_TEST OFF CACHE BOOL "" FORCE)
 
@@ -71,19 +77,29 @@ add_subdirectory("${RIDGEDASH_SMOOTH_UITK_DIR}" EXCLUDE_FROM_ALL)
 file(GLOB_RECURSE RIDGEDASH_CPP CONFIGURE_DEPENDS
     "${RIDGEDASH_SRC_DIR}/*.cpp"
 )
-# main_web.cpp is the Emscripten entry point; always remove it from the glob so
-# it is never accidentally compiled into non-Web targets.
+# Platform-specific entry points are removed from the glob and added back only
+# for the platform that owns them.
 list(REMOVE_ITEM RIDGEDASH_CPP "${RIDGEDASH_SRC_DIR}/main_web.cpp")
+list(REMOVE_ITEM RIDGEDASH_CPP "${RIDGEDASH_SRC_DIR}/main_3ds.cpp")
 if(RIDGEDASH_PLATFORM_IS_WEB)
     # Swap the standard blocking main for the emscripten_set_main_loop variant.
     list(REMOVE_ITEM RIDGEDASH_CPP "${RIDGEDASH_SRC_DIR}/main.cpp")
     list(APPEND RIDGEDASH_CPP "${RIDGEDASH_SRC_DIR}/main_web.cpp")
+endif()
+if(RIDGEDASH_PLATFORM_IS_3DS)
+    list(REMOVE_ITEM RIDGEDASH_CPP "${RIDGEDASH_SRC_DIR}/main.cpp")
+    list(APPEND RIDGEDASH_CPP "${RIDGEDASH_SRC_DIR}/main_3ds.cpp")
 endif()
 
 add_executable(${RIDGEDASH_BIN_NAME}
     ${RIDGEDASH_CPP}
     ${RIDGEDASH_PLATFORM_SOURCES}
 )
+
+if(RIDGEDASH_PLATFORM_IS_3DS)
+    include("${RIDGEDASH_ROOT}/cmake/RidgeDash3DS.cmake")
+    ridgedash_configure_3ds_assets(${RIDGEDASH_BIN_NAME})
+endif()
 
 target_include_directories(${RIDGEDASH_BIN_NAME} PRIVATE
     "${RIDGEDASH_SRC_DIR}"

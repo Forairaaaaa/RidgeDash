@@ -1,5 +1,15 @@
 function(ridgedash_add_dist_target target_name)
-    if(RIDGEDASH_PLATFORM_IS_WEB)
+    if(RIDGEDASH_PLATFORM_IS_3DS)
+        set(runtime_dir "${CMAKE_CURRENT_BINARY_DIR}/runtime")
+        add_custom_target(copy_${target_name}_dist ALL
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${RIDGEDASH_ROOT}/dist"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${runtime_dir}/${target_name}.3dsx"
+                "${RIDGEDASH_ROOT}/dist/${target_name}.3dsx"
+            DEPENDS ${target_name}
+            VERBATIM
+        )
+    elseif(RIDGEDASH_PLATFORM_IS_WEB)
         set(runtime_dir "${CMAKE_CURRENT_BINARY_DIR}/runtime")
         add_custom_target(copy_${target_name}_dist ALL
             COMMAND ${CMAKE_COMMAND} -E make_directory "${RIDGEDASH_ROOT}/dist"

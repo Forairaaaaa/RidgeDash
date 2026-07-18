@@ -31,7 +31,9 @@ constexpr float kPausePanelExitY = 60.0f;
 
 int hudTextWidth(const char* text, int fontSize)
 {
-#if defined(RIDGEDASH_USE_FBDEV)
+#if defined(RIDGEDASH_3DS)
+    return MeasureText(text, fontSize);
+#elif defined(RIDGEDASH_SIMPLE_TEXT_RENDER)
     const int scale = std::max(1, fontSize / 6);
     return static_cast<int>(std::strlen(text)) * 4 * scale;
 #else
@@ -39,9 +41,43 @@ int hudTextWidth(const char* text, int fontSize)
 #endif
 }
 
+#if defined(RIDGEDASH_3DS)
+Vector2 hudMeasureTextEx(const char* text, float fontSize, float spacing)
+{
+    return RidgeDashMeasureTextEx(text, fontSize, spacing);
+}
+
+void hudDrawTextPro(const char* text,
+                    Vector2 position,
+                    Vector2 origin,
+                    float rotation,
+                    float fontSize,
+                    float spacing,
+                    Color color)
+{
+    RidgeDashDrawTextPro(text, position, origin, rotation, fontSize, spacing, color);
+}
+#elif !defined(RIDGEDASH_SIMPLE_TEXT_RENDER)
+Vector2 hudMeasureTextEx(const char* text, float fontSize, float spacing)
+{
+    return MeasureTextEx(GetFontDefault(), text, fontSize, spacing);
+}
+
+void hudDrawTextPro(const char* text,
+                    Vector2 position,
+                    Vector2 origin,
+                    float rotation,
+                    float fontSize,
+                    float spacing,
+                    Color color)
+{
+    DrawTextPro(GetFontDefault(), text, position, origin, rotation, fontSize, spacing, color);
+}
+#endif
+
 void drawTextRightAligned(const char* text, int rightX, int y, int fontSize, Color color, float rotation = 0.0f)
 {
-#if defined(RIDGEDASH_USE_FBDEV)
+#if defined(RIDGEDASH_SIMPLE_TEXT_RENDER) && !defined(RIDGEDASH_3DS)
     (void)rotation;
     DrawText(text, rightX - hudTextWidth(text, fontSize), y, fontSize, color);
 #else
@@ -49,11 +85,10 @@ void drawTextRightAligned(const char* text, int rightX, int y, int fontSize, Col
         DrawText(text, rightX - hudTextWidth(text, fontSize), y, fontSize, color);
         return;
     }
-    const Font font = GetFontDefault();
-    const Vector2 size = MeasureTextEx(font, text, fontSize, 1.0f);
+    const Vector2 size = hudMeasureTextEx(text, fontSize, 1.0f);
     const Vector2 center = {static_cast<float>(rightX) - size.x * 0.5f, static_cast<float>(y) + size.y * 0.5f};
     const Vector2 origin = {size.x * 0.5f, size.y * 0.5f};
-    DrawTextPro(font, text, center, origin, rotation, fontSize, 1.0f, color);
+    hudDrawTextPro(text, center, origin, rotation, fontSize, 1.0f, color);
 #endif
 }
 
@@ -83,7 +118,7 @@ void drawRunSummarySticker(int rightX,
     const Color detailColor = fadeColor(Color{255, 226, 91, 255}, 0.94f * alpha);
     const float bob = scoreStickerBob(time);
 
-#if defined(RIDGEDASH_USE_FBDEV)
+#if defined(RIDGEDASH_SIMPLE_TEXT_RENDER) && !defined(RIDGEDASH_3DS)
     const int iy = static_cast<int>(std::round(y + bob));
     drawTextRightAligned(scoreText, rightX, iy, 20, scoreColor);
     drawTextRightAligned(detailText, rightX, iy + 20, 16, detailColor);
@@ -99,37 +134,33 @@ void drawRunSummarySticker(int rightX,
     const float detailSize = 16.0f * pulse;
     const float scoreGap = 20.0f * pulse;
     const float recordGap = 16.0f * pulse;
-    const Font font = GetFontDefault();
-    const Vector2 recordSizePx = MeasureTextEx(font, recordText, recordSize, kSpacing);
-    const Vector2 scoreSizePx = MeasureTextEx(font, scoreText, scoreSize, kSpacing);
-    const Vector2 detailSizePx = MeasureTextEx(font, detailText, detailSize, kSpacing);
+    const Vector2 recordSizePx = hudMeasureTextEx(recordText, recordSize, kSpacing);
+    const Vector2 scoreSizePx = hudMeasureTextEx(scoreText, scoreSize, kSpacing);
+    const Vector2 detailSizePx = hudMeasureTextEx(detailText, detailSize, kSpacing);
     const float lineY = static_cast<float>(y) + bob;
 
-    DrawTextPro(font,
-                scoreText,
-                Vector2{static_cast<float>(rightX), lineY},
-                Vector2{scoreSizePx.x, 0.0f},
-                rotation,
-                scoreSize,
-                kSpacing,
-                scoreColor);
-    DrawTextPro(font,
-                detailText,
-                Vector2{static_cast<float>(rightX), lineY + scoreGap},
-                Vector2{detailSizePx.x, 0.0f},
-                rotation,
-                detailSize,
-                kSpacing,
-                detailColor);
+    hudDrawTextPro(scoreText,
+                   Vector2{static_cast<float>(rightX), lineY},
+                   Vector2{scoreSizePx.x, 0.0f},
+                   rotation,
+                   scoreSize,
+                   kSpacing,
+                   scoreColor);
+    hudDrawTextPro(detailText,
+                   Vector2{static_cast<float>(rightX), lineY + scoreGap},
+                   Vector2{detailSizePx.x, 0.0f},
+                   rotation,
+                   detailSize,
+                   kSpacing,
+                   detailColor);
     if (newRecord) {
-        DrawTextPro(font,
-                    recordText,
-                    Vector2{static_cast<float>(rightX), lineY + scoreGap + recordGap},
-                    Vector2{recordSizePx.x, 0.0f},
-                    rotation,
-                    recordSize,
-                    kSpacing,
-                    recordColor);
+        hudDrawTextPro(recordText,
+                       Vector2{static_cast<float>(rightX), lineY + scoreGap + recordGap},
+                       Vector2{recordSizePx.x, 0.0f},
+                       rotation,
+                       recordSize,
+                       kSpacing,
+                       recordColor);
     }
 #endif
 }

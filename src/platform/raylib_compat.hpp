@@ -10,36 +10,10 @@
  */
 #pragma once
 
-#if defined(RIDGEDASH_USE_FBDEV)
+#if defined(RIDGEDASH_USE_PLATFORM_COMPAT)
 
+#include "platform/raylib_compat_types.hpp"
 #include <cstdarg>
-
-struct Vector2 {
-    float x;
-    float y;
-};
-
-struct Rectangle {
-    float x;
-    float y;
-    float width;
-    float height;
-};
-
-struct Color {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
-    unsigned char a;
-};
-
-struct Texture2D {
-    unsigned int id;
-    int width;
-    int height;
-    int mipmaps;
-    int format;
-};
 
 constexpr Color WHITE{255, 255, 255, 255};
 constexpr Color RAYWHITE{245, 245, 245, 255};
@@ -107,6 +81,15 @@ void DrawRectanglePro(Rectangle rec, Vector2 origin, float rotation, Color color
 void DrawLineEx(Vector2 startPos, Vector2 endPos, float thick, Color color);
 void DrawTriangle(Vector2 v1, Vector2 v2, Vector2 v3, Color color);
 void DrawText(const char* text, int posX, int posY, int fontSize, Color color);
+int MeasureText(const char* text, int fontSize);
+Vector2 RidgeDashMeasureTextEx(const char* text, float fontSize, float spacing);
+void RidgeDashDrawTextPro(const char* text,
+                          Vector2 position,
+                          Vector2 origin,
+                          float rotation,
+                          float fontSize,
+                          float spacing,
+                          Color color);
 
 Texture2D LoadTexture(const char* fileName);
 void UnloadTexture(Texture2D texture);
@@ -117,6 +100,7 @@ void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2
 bool FileExists(const char* fileName);
 const char* GetApplicationDirectory();
 const char* TextFormat(const char* text, ...);
+unsigned int RidgeDashPlatformTimeMs();
 
 inline int RidgeDashDefaultRenderScale()
 {

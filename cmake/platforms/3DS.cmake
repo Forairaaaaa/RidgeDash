@@ -1,0 +1,15 @@
+# Nintendo 3DS platform configuration (devkitARM + libctru + Citro2D).
+
+if(NOT NINTENDO_3DS AND NOT CMAKE_SYSTEM_NAME STREQUAL "Nintendo3DS")
+    message(WARNING "The 3DS platform normally requires devkitPro's 3DS.cmake toolchain file.")
+endif()
+
+set(RIDGEDASH_PLATFORM_USES_RAYLIB OFF)
+set(RIDGEDASH_PLATFORM_IS_3DS ON)
+set(RIDGEDASH_PLATFORM_ENABLE_AUDIO OFF)
+set(RIDGEDASH_PLATFORM_COMPILE_DEFINITIONS
+    RIDGEDASH_3DS=1
+    RIDGEDASH_USE_PLATFORM_COMPAT=1
+    RIDGEDASH_SIMPLE_TEXT_RENDER=1
+)
+set(RIDGEDASH_PLATFORM_LINK_LIBRARIES citro2d citro3d ctru m)
