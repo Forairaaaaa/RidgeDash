@@ -20,6 +20,16 @@ constexpr int kCanvasWidth = RIDGEDASH_SCREEN_WIDTH;
 constexpr int kCanvasHeight = RIDGEDASH_SCREEN_HEIGHT;
 constexpr size_t kCommandBufferSize = C3D_DEFAULT_CMDBUF_SIZE * 2;
 constexpr size_t kMaxObjects = C2D_DEFAULT_MAX_OBJECTS * 2;
+constexpr float kTopScreenWidth = 400.0f;
+constexpr float kTopScreenHeight = 240.0f;
+constexpr float kCanvasRenderScale = 2.0f;
+constexpr int kCanvasRenderWidth = static_cast<int>(kCanvasWidth * kCanvasRenderScale);
+constexpr int kCanvasRenderHeight = static_cast<int>(kCanvasHeight * kCanvasRenderScale);
+constexpr int kCanvasTextureWidth = 1024;
+constexpr int kCanvasTextureHeight = 512;
+constexpr float kCanvasDisplayScale = kTopScreenWidth / kCanvasWidth;
+constexpr float kCanvasDisplayHeight = kCanvasHeight * kCanvasDisplayScale;
+constexpr float kCanvasDisplayY = (kTopScreenHeight - kCanvasDisplayHeight) * 0.5f;
 
 // raylib key values used by GameInput. Keeping them local avoids name clashes
 // with libctru's KEY_A/KEY_X/etc. constants in this translation unit.
@@ -67,15 +77,18 @@ constexpr int kDefaultFontDivisor = 1;
 struct ThreeDsState {
     C3D_RenderTarget* top = nullptr;
     C3D_RenderTarget* bottom = nullptr;
+    C3D_RenderTarget* canvas = nullptr;
+    C3D_Tex canvasTexture{};
+    Tex3DS_SubTexture canvasSubTexture{};
+    bool canvasTextureInitialized = false;
     C2D_SpriteSheet sprites = nullptr;
     C2D_SpriteSheet font = nullptr;
     u32 keysHeld = 0;
     u32 keysDown = 0;
     u64 lastFrameMs = 0;
     float frameTime = 1.0f / 60.0f;
-    float offsetX = 40.0f;
-    float offsetY = 35.0f;
-    bool showOnTop = true;
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
     bool ready = false;
     bool aptRunning = true;
     bool gfxInitialized = false;
@@ -234,19 +247,55 @@ void pointOnRotatedRectangle(const Rectangle& rec,
     outY = rec.y + g.offsetY + x * sn + y * cs;
 }
 
-void beginCanvasScene(C3D_RenderTarget* target, int screenWidth)
+bool initSupersampledCanvas()
 {
-    C2D_SceneBegin(target);
+    if (!C3D_TexInitVRAM(&g.canvasTexture, kCanvasTextureWidth, kCanvasTextureHeight, GPU_RGBA8)) {
+        return false;
+    }
+    g.canvasTextureInitialized = true;
+    C3D_TexSetFilter(&g.canvasTexture, GPU_LINEAR, GPU_LINEAR);
+    C3D_TexSetWrap(&g.canvasTexture, GPU_CLAMP_TO_EDGE, GPU_CLAMP_TO_EDGE);
+    g.canvas = C3D_RenderTargetCreateFromTex(&g.canvasTexture, GPU_TEXFACE_2D, 0, -1);
+    if (!g.canvas) {
+        return false;
+    }
 
-    // The 3DS framebuffer is tilted: logical Y maps to framebuffer X and
-    // logical X maps to framebuffer Y. Keep overscan geometry inside the
-    // centered 320x170 game canvas instead of letting it spill into the
-    // letterbox area.
-    const u32 left = static_cast<u32>(g.offsetY);
-    const u32 top = static_cast<u32>(screenWidth - (g.offsetX + kCanvasWidth));
-    const u32 right = left + kCanvasHeight;
-    const u32 bottom = static_cast<u32>(screenWidth - g.offsetX);
-    C3D_SetScissor(GPU_SCISSOR_NORMAL, left, top, right, bottom);
+    g.canvasSubTexture.width = kCanvasRenderWidth;
+    g.canvasSubTexture.height = kCanvasRenderHeight;
+    g.canvasSubTexture.left = 0.0f;
+    g.canvasSubTexture.right = static_cast<float>(kCanvasRenderWidth) / kCanvasTextureWidth;
+    g.canvasSubTexture.top = 1.0f;
+    g.canvasSubTexture.bottom = 1.0f - static_cast<float>(kCanvasRenderHeight) / kCanvasTextureHeight;
+    return true;
+}
+
+void beginSupersampledCanvasScene()
+{
+    C2D_SceneBegin(g.canvas);
+    C2D_ViewReset();
+    C2D_ViewScale(kCanvasRenderScale, kCanvasRenderScale);
+    C3D_SetScissor(GPU_SCISSOR_DISABLE, 0, 0, 0, 0);
+}
+
+void drawSupersampledCanvas()
+{
+    C2D_SceneBegin(g.top);
+    C2D_ViewReset();
+
+    constexpr u32 scissorTop = 0;
+    constexpr u32 scissorBottom = static_cast<u32>(kTopScreenWidth);
+    constexpr u32 scissorLeft = static_cast<u32>(kCanvasDisplayY);
+    constexpr u32 scissorRight = static_cast<u32>(kCanvasDisplayY + kCanvasDisplayHeight + 1.0f);
+    C3D_SetScissor(GPU_SCISSOR_NORMAL, scissorLeft, scissorTop, scissorRight, scissorBottom);
+
+    const C2D_Image image{&g.canvasTexture, &g.canvasSubTexture};
+    const C2D_DrawParams params{
+        {0.0f, kCanvasDisplayY, kTopScreenWidth, kCanvasDisplayHeight},
+        {0.0f, 0.0f},
+        kDepth,
+        0.0f,
+    };
+    C2D_DrawImage(image, &params, nullptr);
 }
 
 } // namespace
@@ -292,8 +341,9 @@ void InitWindow(int width, int height, const char*)
             C3D_TexSetFilter(fontAtlas.tex, GPU_NEAREST, GPU_NEAREST);
         }
     }
+    const bool canvasReady = initSupersampledCanvas();
     g.lastFrameMs = osGetTime();
-    g.ready = g.top && g.bottom && g.sprites && g.font;
+    g.ready = g.top && g.bottom && g.sprites && g.font && canvasReady;
 }
 
 bool IsWindowReady()
@@ -313,9 +363,6 @@ bool WindowShouldClose()
     hidScanInput();
     g.keysDown = hidKeysDown();
     g.keysHeld = hidKeysHeld();
-    if ((g.keysDown & KEY_TOUCH) != 0) {
-        g.showOnTop = !g.showOnTop;
-    }
     return (g.keysDown & KEY_SELECT) != 0;
 }
 
@@ -334,19 +381,16 @@ void BeginDrawing()
     C3D_FrameBegin(C3D_FRAME_SYNCDRAW);
     C2D_TargetClear(g.top, C2D_Color32(0, 0, 0, 255));
     C2D_TargetClear(g.bottom, C2D_Color32(0, 0, 0, 255));
-    if (g.showOnTop) {
-        g.offsetX = 40.0f;
-        g.offsetY = 35.0f;
-        beginCanvasScene(g.top, 400);
-    } else {
-        g.offsetX = 0.0f;
-        g.offsetY = 35.0f;
-        beginCanvasScene(g.bottom, 320);
-    }
+    C2D_TargetClear(g.canvas, C2D_Color32(0, 0, 0, 255));
+    g.offsetX = 0.0f;
+    g.offsetY = 0.0f;
+    beginSupersampledCanvasScene();
 }
 
 void EndDrawing()
 {
+    C2D_Flush();
+    drawSupersampledCanvas();
     C3D_FrameEnd(0);
 }
 
@@ -359,6 +403,14 @@ void CloseWindow()
     if (g.sprites) {
         C2D_SpriteSheetFree(g.sprites);
         g.sprites = nullptr;
+    }
+    if (g.canvas) {
+        C3D_RenderTargetDelete(g.canvas);
+        g.canvas = nullptr;
+    }
+    if (g.canvasTextureInitialized) {
+        C3D_TexDelete(&g.canvasTexture);
+        g.canvasTextureInitialized = false;
     }
     if (g.c2dInitialized) {
         C2D_Fini();
