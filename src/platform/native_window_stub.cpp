@@ -12,7 +12,7 @@
 
 #include "platform/native_window.hpp"
 
-#if !defined(RIDGEDASH_USE_FBDEV)
+#if !defined(RIDGEDASH_USE_PLATFORM_COMPAT)
 #include <raylib.h>
 #endif
 
@@ -22,14 +22,14 @@ void enableNativeFullscreen() {}
 
 void toggleNativeFullscreen()
 {
-#if !defined(RIDGEDASH_USE_FBDEV)
+#if !defined(RIDGEDASH_USE_PLATFORM_COMPAT)
     ToggleFullscreen();
 #endif
 }
 
 bool isNativeFullscreen()
 {
-#if !defined(RIDGEDASH_USE_FBDEV)
+#if !defined(RIDGEDASH_USE_PLATFORM_COMPAT)
     return IsWindowFullscreen();
 #else
     return false;

@@ -12,9 +12,14 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <filesystem>
 #include <fstream>
 #include <string>
+
+#if defined(RIDGEDASH_3DS)
+#include <sys/stat.h>
+#else
+#include <filesystem>
+#endif
 
 #if defined(_WIN32)
 #include <shlobj.h>
@@ -23,7 +28,23 @@
 namespace ridge_dash {
 namespace {
 
-std::filesystem::path stateDir()
+#if defined(RIDGEDASH_3DS)
+using SavePath = std::string;
+
+SavePath stateDir()
+{
+    return "sdmc:/3ds/RidgeDash";
+}
+
+void ensureStateDir()
+{
+    mkdir("sdmc:/3ds", 0777);
+    mkdir(stateDir().c_str(), 0777);
+}
+#else
+using SavePath = std::filesystem::path;
+
+SavePath stateDir()
 {
 #if defined(_WIN32)
     wchar_t localAppData[MAX_PATH] = {};
@@ -59,14 +80,29 @@ std::filesystem::path stateDir()
     return std::filesystem::path(".");
 }
 
-std::filesystem::path recordsPath()
+void ensureStateDir()
 {
+    std::error_code ec;
+    std::filesystem::create_directories(stateDir(), ec);
+}
+#endif
+
+SavePath recordsPath()
+{
+#if defined(RIDGEDASH_3DS)
+    return stateDir() + "/records.txt";
+#else
     return stateDir() / "records.txt";
+#endif
 }
 
-std::filesystem::path settingsPath()
+SavePath settingsPath()
 {
+#if defined(RIDGEDASH_3DS)
+    return stateDir() + "/settings.txt";
+#else
     return stateDir() / "settings.txt";
+#endif
 }
 
 int clampRecordValue(int value)
@@ -104,9 +140,8 @@ GameRecords loadGameRecords()
 
 void saveGameRecords(const GameRecords& records)
 {
-    const std::filesystem::path path = recordsPath();
-    std::error_code ec;
-    std::filesystem::create_directories(path.parent_path(), ec);
+    const SavePath path = recordsPath();
+    ensureStateDir();
 
     std::ofstream file(path, std::ios::trunc);
     if (!file) {
@@ -145,9 +180,8 @@ GameSettings loadGameSettings()
 
 void saveGameSettings(const GameSettings& settings)
 {
-    const std::filesystem::path path = settingsPath();
-    std::error_code ec;
-    std::filesystem::create_directories(path.parent_path(), ec);
+    const SavePath path = settingsPath();
+    ensureStateDir();
 
     std::ofstream file(path, std::ios::trunc);
     if (!file) {
