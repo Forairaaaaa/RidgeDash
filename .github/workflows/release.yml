@@ -143,12 +143,36 @@ jobs:
           path: dist/artifacts/*
           if-no-files-found: error
 
+  package-3ds:
+    needs: verify-version
+    runs-on: ubuntu-22.04
+    container: devkitpro/devkitarm:20260610
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Fetch dependencies
+        run: python3 fetch_repos.py
+
+      - name: Package Nintendo 3DS
+        run: packaging/3ds/package_3ds.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: 3ds-package
+          path: dist/artifacts/*
+          if-no-files-found: error
+
   publish:
     needs:
       - package-linux
       - package-windows
       - package-macos
       - package-cardputer
+      - package-3ds
     runs-on: ubuntu-22.04
     permissions:
       contents: write

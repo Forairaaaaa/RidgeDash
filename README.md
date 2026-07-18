@@ -30,6 +30,13 @@ A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill
 - `R`：重开
 - `Esc`：暂停菜单
 
+Nintendo 3DS：
+
+- 右方向 / `A` / `R`：油门
+- 左方向 / `B` / `L`：刹车 / 倒车
+- 十字键和 Circle Pad 均可控制方向
+- `X`：重开，`Start`：暂停菜单，`Select`：退出
+
 ## 美术
 
 ### Sprites
@@ -196,6 +203,34 @@ dist/artifacts/RidgeDash-x.y.z-windows-x86_64.zip
 ```
 
 打包脚本会检查生成程序的 MinGW 运行库依赖，并在需要时自动附带对应 DLL。
+
+### Nintendo 3DS（.3dsx）
+
+3DS 版使用 Citro2D 在上屏渲染，保留游戏音效和动态引擎声；为保证帧率，不播放 BGM。
+
+在已安装 devkitPro 3DS 工具链的环境中构建：
+
+```bash
+./packaging/3ds/package_3ds.sh
+```
+
+Apple Silicon Mac 也可以通过 [Apple Container](https://github.com/apple/container) 隔离构建环境：
+
+```bash
+./packaging/3ds/package_3ds_container.sh
+```
+
+打包产物：
+
+```text
+dist/artifacts/RidgeDash-x.y.z-3ds.3dsx
+```
+
+在 Homebrew Launcher 中打开 NetLoader 后，可以直接构建并发送到主机：
+
+```bash
+./packaging/3ds/run_3ds_container.sh <3ds-ip>
+```
 
 ### CardputerZero（Deb）
 

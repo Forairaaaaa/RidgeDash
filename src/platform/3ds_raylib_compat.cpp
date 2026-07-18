@@ -194,9 +194,9 @@ u32 nativeKeyForGameKey(int key)
 {
     switch (key) {
         case kKeyRight:
-            return KEY_RIGHT;
+            return KEY_RIGHT | KEY_CPAD_RIGHT;
         case kKeyLeft:
-            return KEY_LEFT;
+            return KEY_LEFT | KEY_CPAD_LEFT;
         case kKeyDown:
         case kKeyS:
             return KEY_DOWN;
