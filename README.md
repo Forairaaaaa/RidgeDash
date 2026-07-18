@@ -11,6 +11,10 @@ A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill
 - 8Bit 风格音效、BGM 和动态引擎声
 - CRT 着色器，高帧率渲染插值，窗口动态调整
 
+[![实机演示](https://img.shields.io/badge/Bilibili-实机演示-00A1D6?logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1tcNZ6xEhe)
+[![在线游玩](https://img.shields.io/badge/Web-在线游玩-5B8CFF?logo=googlechrome&logoColor=white)](https://forairaaaaa.github.io/RidgeDash)
+[![获取游戏](https://img.shields.io/badge/GitHub-获取游戏-181717?logo=github)](https://github.com/Forairaaaaa/RidgeDash/releases/latest)
+
 <img width="865" height="471" alt="SCR-20260717-ugdj" src="https://github.com/user-attachments/assets/80d97ea3-a28d-473e-9511-5156e1890cad" />
 
 <img width="860" height="466" alt="SCR-20260717-ugku" src="https://github.com/user-attachments/assets/82233c8c-beb1-4a2f-99f6-7b32d80fa9e2" />
