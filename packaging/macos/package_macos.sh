@@ -5,8 +5,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+source "${ROOT_DIR}/packaging/package_helpers.sh"
 BIN_NAME="RidgeDash"
 APP_NAME="RidgeDash"
+VERSION="$(ridgedash_project_version "${ROOT_DIR}/CMakeLists.txt")"
 BUNDLE_ID="net.forairaaaaa.ridgedash"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/macos}"
 DIST_DIR="${DIST_DIR:-${ROOT_DIR}/dist/artifacts}"
@@ -22,9 +24,6 @@ fi
 for tool in "${CMAKE_BIN}" sips iconutil ditto; do
     command -v "${tool}" >/dev/null 2>&1 || { echo "Required tool not found: ${tool}" >&2; exit 1; }
 done
-
-VERSION="$(grep -E 'project\(RidgeDash VERSION' "${ROOT_DIR}/CMakeLists.txt" | sed -E 's/.*VERSION ([0-9.]+).*/\1/')"
-VERSION="${VERSION:-0.0.0}"
 
 # 1. Build the desktop binary (produces dist/RidgeDash + dist/assets).
 "${CMAKE_BIN}" -S "${ROOT_DIR}" -B "${BUILD_DIR}" \
@@ -88,7 +87,7 @@ EOF
 
 # 5. Zip into dist/artifacts/ (ditto preserves the bundle + exec bits).
 mkdir -p "${DIST_DIR}"
-ZIP_PATH="${DIST_DIR}/${APP_NAME}-macos-arm64.zip"
+ZIP_PATH="${DIST_DIR}/${APP_NAME}-${VERSION}-macos-arm64.zip"
 rm -f "${ZIP_PATH}"
 ( cd "${APP_STAGE}" && ditto -c -k --sequesterRsrc --keepParent "${APP_NAME}.app" "${ZIP_PATH}" )
 

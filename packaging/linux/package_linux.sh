@@ -7,8 +7,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+source "${ROOT_DIR}/packaging/package_helpers.sh"
 BIN_NAME="RidgeDash"
 APP_NAME="RidgeDash"
+VERSION="$(ridgedash_project_version "${ROOT_DIR}/CMakeLists.txt")"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/desktop}"
 DIST_DIR="${DIST_DIR:-${ROOT_DIR}/dist/artifacts}"
 PKG_STAGE="${PKG_STAGE:-${ROOT_DIR}/build/linux-pkg}"
@@ -70,7 +72,7 @@ install -m 755 "${SCRIPT_DIR}/install_desktop.sh" "${PKG_STAGE}/${APP_NAME}/inst
 
 # 4. Tar.gz into dist/artifacts/.
 mkdir -p "${DIST_DIR}"
-TAR_PATH="${DIST_DIR}/${APP_NAME}-linux-${ARCH}.tar.gz"
+TAR_PATH="${DIST_DIR}/${APP_NAME}-${VERSION}-linux-${ARCH}.tar.gz"
 rm -f "${TAR_PATH}"
 tar -czf "${TAR_PATH}" -C "${PKG_STAGE}" "${APP_NAME}"
 

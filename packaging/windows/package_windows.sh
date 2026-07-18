@@ -6,8 +6,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+source "${ROOT_DIR}/packaging/package_helpers.sh"
 BIN_NAME="RidgeDash"
 APP_NAME="RidgeDash"
+VERSION="$(ridgedash_project_version "${ROOT_DIR}/CMakeLists.txt")"
 BUILD_DIR="${BUILD_DIR:-${ROOT_DIR}/build/windows}"
 DIST_DIR="${DIST_DIR:-${ROOT_DIR}/dist/artifacts}"
 PKG_STAGE="${PKG_STAGE:-${ROOT_DIR}/build/windows-pkg}"
@@ -63,7 +65,7 @@ fi
 
 # 3. Zip into dist/artifacts/.
 mkdir -p "${DIST_DIR}"
-ZIP_PATH="${DIST_DIR}/${APP_NAME}-windows-x86_64.zip"
+ZIP_PATH="${DIST_DIR}/${APP_NAME}-${VERSION}-windows-x86_64.zip"
 rm -f "${ZIP_PATH}"
 ( cd "${PKG_STAGE}" && zip -rq "${ZIP_PATH}" "${APP_NAME}" )
 

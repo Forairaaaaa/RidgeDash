@@ -51,13 +51,13 @@ Replace `DRM` with `FBDEV` for framebuffer-only builds.
 **macOS (.app bundle, ad-hoc signed, arm64 only):**
 ```bash
 ./packaging/macos/package_macos.sh
-# Produces: dist/artifacts/RidgeDash-macos-arm64.zip
+# Produces: dist/artifacts/RidgeDash-x.y.z-macos-arm64.zip
 ```
 
 **Desktop Linux (.tar.gz):**
 ```bash
 ./packaging/linux/package_linux.sh
-# Produces: dist/artifacts/RidgeDash-linux-x86_64.tar.gz
+# Produces: dist/artifacts/RidgeDash-x.y.z-linux-x86_64.tar.gz
 # Portable directory: unpack and run ./RidgeDash.
 # Build on the oldest supported distro; system glibc/graphics/audio libraries are required.
 # Run ./install_desktop.sh inside the package for per-user launcher integration.
@@ -67,7 +67,7 @@ Replace `DRM` with `FBDEV` for framebuffer-only builds.
 ```bash
 ./packaging/windows/package_windows.sh
 # Requires: sudo apt install mingw-w64
-# Produces: dist/artifacts/RidgeDash-windows-x86_64.zip
+# Produces: dist/artifacts/RidgeDash-x.y.z-windows-x86_64.zip
 # Portable: unzip anywhere on Windows and double-click RidgeDash.exe.
 ```
 

@@ -141,7 +141,7 @@ RIDGEDASH_TEST_PICKUP=helmet ./dist/RidgeDash
 打包产物：
 
 ```text
-dist/artifacts/RidgeDash-macos-arm64.zip
+dist/artifacts/RidgeDash-x.y.z-macos-arm64.zip
 ```
 
 该 app 仅 arm64、**未签名**，所以首次打开需要右键 → 打开（或执行`xattr -dr com.apple.quarantine RidgeDash.app`）以绕过 Gatekeeper
@@ -157,7 +157,7 @@ dist/artifacts/RidgeDash-macos-arm64.zip
 打包产物：
 
 ```text
-dist/artifacts/RidgeDash-linux-x86_64.tar.gz
+dist/artifacts/RidgeDash-x.y.z-linux-x86_64.tar.gz
 ```
 
 这是可移动的目录包，但仍依赖目标系统提供 glibc、图形和音频运行库。为获得更好的发行版兼容性，
@@ -188,7 +188,7 @@ sudo apt install mingw-w64
 打包产物：
 
 ```text
-dist/artifacts/RidgeDash-windows-x86_64.zip
+dist/artifacts/RidgeDash-x.y.z-windows-x86_64.zip
 ```
 
 打包脚本会检查生成程序的 MinGW 运行库依赖，并在需要时自动附带对应 DLL。
