@@ -206,7 +206,7 @@ dist/artifacts/RidgeDash-x.y.z-windows-x86_64.zip
 
 ### Nintendo 3DS（.3dsx）
 
-3DS 版使用 Citro2D 在上屏渲染，保留游戏音效和动态引擎声；为保证帧率，不播放 BGM。
+3DS 版使用 Citro2D 在上屏渲染
 
 在已安装 devkitPro 3DS 工具链的环境中构建：
 
