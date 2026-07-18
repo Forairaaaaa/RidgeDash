@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build RidgeDash.app for macOS (Apple Silicon) and zip it into dist/artifacts/.
-# No code signing — the app is ad-hoc; first launch needs right-click -> Open.
+# The assembled app receives a complete ad-hoc signature. Developer ID signing
+# and notarization are still required for warning-free public distribution.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,7 +22,7 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
     echo "This script must run on macOS (needs sips/iconutil)." >&2
     exit 1
 fi
-for tool in "${CMAKE_BIN}" sips iconutil ditto; do
+for tool in "${CMAKE_BIN}" sips iconutil ditto codesign xattr; do
     command -v "${tool}" >/dev/null 2>&1 || { echo "Required tool not found: ${tool}" >&2; exit 1; }
 done
 
@@ -85,7 +86,14 @@ cat >"${APP}/Contents/Info.plist" <<EOF
 </plist>
 EOF
 
-# 5. Zip into dist/artifacts/ (ditto preserves the bundle + exec bits).
+# 5. Replace the linker's executable-only signature with a complete bundle
+# signature. Clearing inherited metadata also prevents local source-file
+# quarantine attributes from being sealed into the app.
+xattr -cr "${APP}"
+codesign --force --sign - --identifier "${BUNDLE_ID}" "${APP}"
+codesign --verify --deep --strict --verbose=2 "${APP}"
+
+# 6. Zip into dist/artifacts/ (ditto preserves the bundle + exec bits).
 mkdir -p "${DIST_DIR}"
 ZIP_PATH="${DIST_DIR}/${APP_NAME}-${VERSION}-macos-arm64.zip"
 rm -f "${ZIP_PATH}"
