@@ -1,8 +1,8 @@
 name: Web Build & Deploy
 
 on:
-  push:
-    branches: [main]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -10,10 +10,13 @@ permissions:
   pages: write
   id-token: write
 
-# Only one Pages deploy at a time; cancel queued runs on new pushes.
+# Only one Pages deploy at a time; a newer release supersedes queued work.
 concurrency:
   group: pages
   cancel-in-progress: true
+
+env:
+  BUILD_REF: ${{ github.event.release.tag_name || github.ref }}
 
 jobs:
   build:
@@ -21,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BUILD_REF }}
 
       - name: Set up Emscripten SDK
         uses: mymindstorm/setup-emsdk@v14
