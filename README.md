@@ -30,13 +30,6 @@ A retro pixel-art 2D side-scrolling physics-based driving game inspired by [Hill
 - `R`：重开
 - `Esc`：暂停菜单
 
-Nintendo 3DS：
-
-- 右方向 / `A` / `R`：油门
-- 左方向 / `B` / `L`：刹车 / 倒车
-- 十字键和 Circle Pad 均可控制方向
-- `X`：重开，`Start`：暂停菜单，`Select`：退出
-
 ## 美术
 
 ### Sprites
